@@ -216,24 +216,33 @@
       doSelect.innerHTML = '';
       
       const lines = data.split('\n');
-      const uniqueDoData = new Map(); // Use a Map for unique entries to avoid duplicates
+      const doDataMap = new Map(); // Use a Map to aggregate data per DO
 
       lines.forEach(line => {
         const parts = line.split('\t');
-        // Check if the line has enough columns and required fields are not empty
-        if (parts.length >= 6 && parts[0].trim() !== '' && parts[1].trim() !== '' && parts[5].trim() !== '') {
+        // Material is in the 5th column (index 4)
+        if (parts.length >= 6 && parts[0].trim() !== '' && parts[4].trim() !== '') {
           const doNumber = parts[0].trim();
-          // If we haven't seen this DO number before, store its data
-          if (!uniqueDoData.has(doNumber)) {
+          const material = parts[4].trim();
+
+          if (!doDataMap.has(doNumber)) {
+            // First time seeing this DO, create a new entry
             const vehicleId = parts[1].trim();
-            const partnerName = parts[5].trim(); // Get partner name from the 6th column
-            uniqueDoData.set(doNumber, { do: doNumber, vehicle: vehicleId, partner: partnerName });
+            const partnerName = parts[5].trim();
+            doDataMap.set(doNumber, {
+              do: doNumber,
+              vehicle: vehicleId,
+              partner: partnerName,
+              materials: new Set()
+            });
           }
+          // Add the material to the set for this DO
+          doDataMap.get(doNumber).materials.add(material);
         }
       });
 
       // Convert Map values to array for the global store
-      parsedDataStore = Array.from(uniqueDoData.values());
+      parsedDataStore = Array.from(doDataMap.values());
 
       if (parsedDataStore.length === 0) {
         doSelect.innerHTML = '<option>ไม่พบข้อมูล DO ที่ถูกต้อง</option>';
@@ -248,11 +257,9 @@
       defaultOption.value = '';
       doSelect.appendChild(defaultOption);
 
-      // Iterate over the stored unique data to create dropdown options
       parsedDataStore.forEach(entry => {
         const option = document.createElement('option');
         option.value = entry.do;
-        // Display DO number and Partner Name in the option text
         option.textContent = `${entry.do} (${entry.partner})`; 
         doSelect.appendChild(option);
       });
@@ -267,24 +274,39 @@
         const vehicleIdEl = document.getElementById('vehicle-id-val');
         const partnerNameEl = document.getElementById('partner-name-val');
         const notesEl = document.getElementById('notes-val');
+        const productSelect = document.getElementById('product-select');
 
         if (selectedDo) {
-            // Find the first matching entry for the selected DO
             const entry = parsedDataStore.find(item => item.do === selectedDo);
             if (entry) {
                 vehicleIdEl.textContent = entry.vehicle;
                 partnerNameEl.textContent = entry.partner;
                 notesEl.textContent = `DO NO. ${entry.do}`;
+
+                // Automatically select the product based on materials
+                const hasSlit = entry.materials.has('2SLIT');
+                const hasScrap = entry.materials.has('2SCRAP-W');
+
+                if (hasSlit && hasScrap) {
+                    productSelect.value = 'เหล็กม้วนสลิต + เศษรังผึ้ง';
+                } else if (hasSlit) {
+                    productSelect.value = 'เหล็กม้วนสลิต';
+                } else if (hasScrap) {
+                    productSelect.value = 'เศษคืนลูกค้า';
+                }
+                updateProduct(); // Update the display in the printable area
             }
         } else {
             // Clear fields if no DO is selected
             vehicleIdEl.textContent = '';
             partnerNameEl.textContent = '';
             notesEl.textContent = '';
+            productSelect.selectedIndex = 0; // Reset product dropdown to the first option
+            updateProduct();
         }
     }
 
-    // Function to update product name
+    // Function to update product name in the printable area
     function updateProduct() {
         const selectedProduct = document.getElementById('product-select').value;
         document.getElementById('product-name-val').textContent = selectedProduct;
