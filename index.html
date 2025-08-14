@@ -1,412 +1,312 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ใบชั่งน้ำหนัก</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Sarabun -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Sarabun', sans-serif;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ใบชั่งน้ำหนัก</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Use Sarabun font as the base */
+    body { 
+      font-family: 'Sarabun', sans-serif; 
+    }
+    /* Print-specific styles */
+    @media print {
+      @page { 
+        size: 5.5in 9.5in; 
+        margin: 0.05in; 
       }
-    </style>
-    <!-- Print CSS for media="print" -->
-    <style media="print">
-      @page {
-        size: 5.5in 9.5in; /* A common size for continuous forms */
-        margin: 0.80in; /* ปรับลด margin เพื่อให้เนื้อหาชิดขอบมากขึ้น */
+      .no-print { 
+        display: none !important; 
       }
-      
-      .no-print {
-        display: none !important;
+      body { 
+        background-color: #ffffff !important; 
+        margin: 0; 
       }
-      body {
-        background-color: #ffffff !important;
-        margin: 0;
+      #printable-area { 
+        box-shadow: none !important; 
+        width: 100% !important; 
+        margin: 0 !important; 
       }
-      #printable-area {
-        box-shadow: none !important;
-        /* Adjusted width and height for a vertical layout resembling the reference image */
-        width: 5in !important;
-        max-width: 5in !important;
-        /* Adjusting height to fit content within one page */
-        height: 9.3in !important; 
-        margin: 0 !important;
-        border: none !important;
-        /* Ensure text remains readable and form fields don't show borders */
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-      }
-      /* Ensure text remains readable and form fields don't show borders */
-      input, select {
-        border: none !important;
-        box-shadow: none !important;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-        background: transparent !important;
-        padding: 0 !important;
-        color: inherit !important;
-        font: inherit !important;
-        /* Prevent input fields from breaking into new lines */
-        white-space: nowrap;
-      }
-      input:focus, select:focus {
-        outline: none !important;
-        box-shadow: none !important;
-      }
-      input.font-mono, select.font-mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      }
-      input.font-bold, select.font-bold {
-        font-weight: 700;
-      }
-    </style>
+    }
+    /* Flexbox row for inline elements */
+    .row { 
+      display: flex; 
+      align-items: baseline; 
+    }
+    .row .label { 
+      white-space: nowrap; /* Prevent label text from wrapping */
+    }
+    .row .colon { 
+      text-align: center; 
+    }
+    .row .value { 
+      /* Allow value text to wrap if needed */
+      white-space: normal; 
+    }
 
-    <!-- React and ReactDOM from CDN -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel for JSX transformation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    /* Default row styling for the top section */
+    .row.default .label { 
+      width: auto; 
+    }
+    .row.default .colon { 
+      width: auto; 
+      padding: 0 4px; 
+    }
+    .row.default .value { 
+      padding-left: 0; 
+      flex: 1; 
+    }
+
+    /* Tighter row styling for date/time/weight section to align colons */
+    .row.tight { 
+      width: 100%; 
+    }
+    .row.tight .label { 
+      width: 115px; /* Fixed width to align colons */
+    }
+    .row.tight .colon { 
+      width: 10px; 
+    }
+    .row.tight .value { 
+      padding-left: 28px; /* Space after the colon */
+      flex: 1; 
+    }
+  </style>
 </head>
-<body class="bg-gray-100">
-    <div id="root"></div>
-
-    <script type="text/babel">
-      const { useState } = React;
-      
-      // Interface for data types
-      interface WeighingData {
-          companyName: string;
-          companyAddress: string;
-          documentTitle: string;
-          ticketNumber: string;
-          vehicleRegistration: string;
-          customer: string;
-          product: string;
-          entryDate: string;
-          entryTime: string;
-          entryWeight: string;
-          billWeight: string;
-          weightDifference: string;
-          exitDate: string;
-          exitTime: string;
-          exitWeight: string;
-          netWeight: string;
-          remarks: string;
-      }
-
-      interface JobData {
-        doNumber: string;
-        vehicleRegistration: string;
-        customer: string;
-      }
-
-      // Function to parse raw text data into a structured list of jobs
-      const parseJobsFromString = (data) => {
-          if (!data || typeof data !== 'string') {
-              return [];
-          }
-          const parsedJobs = data
-              .split('\n')
-              .map(line => line.trim())
-              .filter(line => line.length > 0)
-              .map(line => line.split('\t'))
-              .reduce((acc, parts) => {
-                  if (parts.length < 6) return acc;
-                  
-                  const [doNumber, vehicle, _c1, _c2, _c3, customer] = parts.map(p => p.trim());
-                  
-                  const isDoNumberValid = doNumber && /^\d+$/.test(doNumber);
-                  
-                  if (isDoNumberValid && vehicle && customer && !acc[doNumber]) {
-                      acc[doNumber] = {
-                          doNumber,
-                          vehicleRegistration: vehicle,
-                          customer,
-                      };
-                  }
-                  return acc;
-              }, {});
-
-          return Object.values(parsedJobs);
-      };
-
-      const productOptions = ['เหล็กม้วนสลิต', 'เหล็กม้วนสลิต+เศษรังผึ้ง', 'เศษคืนลูกค้า'];
-
-      // Initial data modeled from the provided image
-      const initialTicketData = {
-        companyName: 'บริษัท ทีเอ็มที สตีล จำกัด (มหาชน)',
-        companyAddress: 'สาขาวังน้อย : 332-333 หมู่ที่5 ถนนพหลโยธิน ต.ลำไทร อ.วังน้อย จ.พระนครศรีอยุธยา 13170',
-        documentTitle: 'ใบชั่งน้ำหนัก',
-        ticketNumber: '08-0048', // Adjusted to match the new image
-        vehicleRegistration: 'V4-706270', // Adjusted to match the new image
-        customer: 'บริษัท บางกอกชีทเม็ททัล จำกัด (มหาชน)',
-        product: productOptions[0],
-        entryDate: '11/08/2568',
-        entryTime: '17:06:20', // Adjusted to match the new image
-        entryWeight: '-',
-        billWeight: '-',
-        weightDifference: '-',
-        exitDate: '11/08/2568',
-        exitTime: '17:06:20', // Adjusted to match the new image
-        exitWeight: '-',
-        netWeight: '17,450', // Adjusted to match the new image
-        remarks: 'DO NO. 230936086', // Adjusted to match the new image
-      };
-
-      // A helper component for rows with a label, value, and an optional unit.
-      const InfoRow = ({ label, value, unit, valueClassName = '', isMono = true, justify = 'between' }) => {
-          const fontClass = isMono ? 'font-mono' : '';
-          return (
-              <div className={`flex justify-${justify} items-baseline`}>
-                  <span>{label}</span>
-                  <div className="flex items-baseline">
-                      <span className={`px-2 ${fontClass} ${valueClassName}`}>: {value}</span>
-                      {unit && <span className="w-8 text-left">{unit}</span>}
-                  </div>
-              </div>
-          );
-      }
-
-      const App = () => {
-        const [formData, setFormData] = useState(initialTicketData);
-        const [jobList, setJobList] = useState([]);
-        const [pastedText, setPastedText] = useState('');
-        const [selectedDoNumber, setSelectedDoNumber] = useState('');
-
-        const handleInputChange = (e) => {
-          const { name, value } = e.target;
-          setFormData(prevData => ({
-            ...prevData,
-            [name]: value,
-          }));
-        };
-        
-        const handleImportData = () => {
-            const newJobs = parseJobsFromString(pastedText);
-            setJobList(newJobs);
-            setSelectedDoNumber('');
-            setFormData(initialTicketData);
-            console.log(`ประมวลผลข้อมูลใหม่ ${newJobs.length} รายการเรียบร้อยแล้ว`);
-        };
-
-        const handleJobChange = (e) => {
-          const doNumber = e.target.value;
-          setSelectedDoNumber(doNumber);
-          const selectedJob = jobList.find(job => job.doNumber === doNumber);
-
-          if (selectedJob) {
-              const now = new Date();
-              const formattedDate = now.toLocaleDateString('th-TH-u-ca-buddhist', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-              });
-              const formattedTime = now.toLocaleTimeString('th-TH', { hour12: false });
-
-              setFormData({
-                  ...initialTicketData,
-                  vehicleRegistration: selectedJob.vehicleRegistration,
-                  customer: selectedJob.customer,
-                  product: productOptions[0],
-                  remarks: `DO NO. ${selectedJob.doNumber}`,
-                  entryDate: formattedDate,
-                  exitDate: formattedDate,
-                  entryTime: formattedTime,
-                  exitTime: formattedTime,
-                  entryWeight: '-',
-                  exitWeight: '-',
-                  netWeight: '',
-                  billWeight: '-',
-                  weightDifference: '-',
-              });
-          } else {
-              setFormData(initialTicketData);
-              setSelectedDoNumber('');
-          }
-        };
-
-        const handlePrint = () => {
-          window.print();
-        };
-
-        const inputClasses = "bg-transparent focus:outline-none border-b border-dotted border-gray-400 focus:border-solid focus:border-blue-500";
-        const flexClasses = "flex justify-between items-baseline";
-        const inputPadding = "px-2";
-
-        return (
-          <div className="min-h-screen bg-gray-200 flex flex-col items-center justify-center p-4">
-              
-            <div className="w-full max-w-3xl mb-4 space-y-4 no-print">
-              <details className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                  <summary className="cursor-pointer font-semibold text-gray-800 hover:text-blue-600 transition-colors">
-                      นำเข้าข้อมูลจาก Excel
-                  </summary>
-                  <div className="mt-4">
-                      <p className="text-sm text-gray-600 mb-2">
-                          คัดลอกข้อมูลจาก Excel แล้ววางลงในช่องด้านล่าง จากนั้นกดปุ่ม "ประมวลผลข้อมูล"
-                      </p>
-                      <textarea
-                          className="w-full h-48 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition"
-                          value={pastedText}
-                          onChange={(e) => setPastedText(e.target.value)}
-                          placeholder="วางข้อมูลที่นี่..."
-                          aria-label="ช่องวางข้อมูลจาก Excel"
-                      />
-                      <button
-                          onClick={handleImportData}
-                          className="mt-3 py-2 px-5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all"
-                      >
-                          ประมวลผลข้อมูล
-                      </button>
-                  </div>
-              </details>
-            
-              <div>
-                <label htmlFor="job-select" className="block text-sm font-medium text-gray-700 mb-1">
-                  เลือกข้อมูลการชั่ง
-                </label>
-                <select
-                  id="job-select"
-                  name="job-select"
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm"
-                  onChange={handleJobChange}
-                  value={selectedDoNumber}
-                  aria-label="เลือกข้อมูลการชั่ง"
-                >
-                  <option value="">-- กรุณาเลือก --</option>
-                  {jobList.map(job => (
-                    <option key={job.doNumber} value={job.doNumber}>
-                      {job.vehicleRegistration} - {job.customer} (DO: {job.doNumber})
-                    </option>
-                  ))}
-                </select>
-              </div>
+<body class="bg-gray-100 text-sm leading-relaxed">
+  <div class="w-full max-w-4xl mx-auto p-4">
+    
+    <!-- Control Panel - Not for printing -->
+    <div class="no-print bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
+        <h3 class="text-lg font-bold mb-4 text-gray-700">เครื่องมือสร้างใบชั่ง</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Data Input Area -->
+            <div>
+                <label for="paste-area" class="block text-sm font-medium text-gray-700 mb-1">1. วางข้อมูลที่คัดลอกมาที่นี่:</label>
+                <textarea id="paste-area" rows="8" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="วางข้อมูลจาก Excel ที่นี่ โปรแกรมจะดึงข้อมูลที่จำเป็นให้เอง"></textarea>
+                <button id="process-data-btn" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">ประมวลผลข้อมูล</button>
             </div>
-
-            <div id="printable-area" className="w-full max-w-3xl bg-white shadow-lg text-gray-800 text-sm">
-              <div className="px-10 py-8">
-                
-                {/* Header Section */}
-                <header className="text-center mb-4 flex flex-col items-center">
-                    <h1 className="text-xl font-bold">{formData.companyName}</h1>
-                    <p className="text-xs">{formData.companyAddress}</p>
-                </header>
-
-                <div className="text-center mb-6">
-                    <h2 className="text-lg font-bold">{formData.documentTitle}</h2>
+            <!-- Manual Inputs & Actions -->
+            <div class="space-y-4">
+                 <div>
+                    <label for="do-select" class="block text-sm font-medium text-gray-700">2. เลือกเลขที่ DO:</label>
+                    <select id="do-select" class="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                        <option>--- กรุณาประมวลผลข้อมูลก่อน ---</option>
+                    </select>
                 </div>
-
-                {/* Top Details Section */}
-                <section className="grid grid-cols-2 gap-x-12 mb-2">
-                    <div className="space-y-1">
-                        <InfoRow label="เลขที่บัตร" value={formData.ticketNumber} justify="start" />
-                        <div className="flex justify-start items-baseline">
-                            <span className="whitespace-nowrap">ทะเบียนรถ</span>
-                            <div className="flex items-baseline">
-                                <span className={`${inputPadding} font-mono`}>:</span>
-                                <input
-                                    type="text"
-                                    name="vehicleRegistration"
-                                    value={formData.vehicleRegistration}
-                                    onChange={handleInputChange}
-                                    className={`${inputClasses} font-mono`}
-                                    autoComplete="off"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="space-y-1">
-                        <InfoRow label="คู่ค้า" value={formData.customer} justify="start" isMono={false} />
-                        <InfoRow label="สินค้า" value={formData.product} justify="start" isMono={false} />
-                    </div>
-                </section>
-
-                <hr className="border-t-2 border-dotted border-gray-400 my-4" />
-
-                {/* Weighing Details Section */}
-                <section className="grid grid-cols-2">
-                    {/* Entry Column */}
-                    <div className="space-y-2 pr-6">
-                        <h3 className="text-base font-bold text-center mb-3">รถเข้า</h3>
-                        <InfoRow label="วันที่ชั่งเข้า" value={formData.entryDate} />
-                        <InfoRow label="เวลาชั่งเข้า" value={formData.entryTime} />
-                        <InfoRow label="น้ำหนักรถเข้า" value={formData.entryWeight} unit="กก." />
-                        <InfoRow label="น้ำหนักตามบิล" value={formData.billWeight} unit="กก." />
-                        <InfoRow label="น้ำหนักต่าง" value={formData.weightDifference} unit="กก." />
-                    </div>
-                    
-                    {/* Exit Column */}
-                    <div className="space-y-2 pl-6">
-                        <h3 className="text-base font-bold text-center mb-3">รถออก</h3>
-                        <InfoRow label="วันที่ชั่งออก" value={formData.exitDate} />
-                        <InfoRow label="เวลาชั่งออก" value={formData.exitTime} />
-                        <InfoRow label="น้ำหนักรถเข้า" value={formData.entryWeight} unit="กก." />
-                        <InfoRow label="น้ำหนักรถออก" value={formData.exitWeight} unit="กก." />
-                        <div className="flex justify-between items-baseline">
-                            <span className="whitespace-nowrap">น้ำหนักสุทธิ</span>
-                            <div className="flex items-baseline">
-                                <span className={`${inputPadding} font-bold`}>:</span>
-                                <input
-                                    type="text"
-                                    name="netWeight"
-                                    value={formData.netWeight}
-                                    onChange={handleInputChange}
-                                    className={`${inputClasses} font-mono font-bold text-right`}
-                                    autoComplete="off"
-                                    size={10}
-                                />
-                                <span className="w-8 text-left ml-1">กก.</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <hr className="border-t-2 border-dotted border-gray-400 my-4" />
-                
-                {/* Remarks Section */}
-                <section className="my-4">
-                    <InfoRow label="หมายเหตุ" value={formData.remarks} justify="start" />
-                </section>
-
-                {/* Footer */}
-                <footer className="mt-12 text-right">
-                    <p>พนักงานชั่งน้ำหนัก........................................</p>
-                </footer>
-
-              </div>
+                <div>
+                    <label for="product-select" class="block text-sm font-medium text-gray-700">3. เลือกสินค้า:</label>
+                    <select id="product-select" class="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <option>เหล็กม้วนสลิต</option>
+                        <option>เหล็กม้วนสลิต + เศษรังผึ้ง</option>
+                        <option>เศษคืนลูกค้า</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="net-weight-input" class="block text-sm font-medium text-gray-700">4. ระบุน้ำหนักสุทธิ (กก.):</label>
+                    <input type="number" id="net-weight-input" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น 2408">
+                </div>
+                <div class="text-right">
+                    <button onclick="window.print()" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">พิมพ์บัตรชั่ง</button>
+                </div>
             </div>
-            <button 
-              onClick={handlePrint} 
-              className="mt-6 mb-4 py-2 px-6 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 no-print"
-              aria-label="พิมพ์บัตรชั่ง"
-            >
-              พิมพ์บัตรชั่ง
-            </button>
-          </div>
-        );
-      };
+        </div>
+    </div>
 
-      // index.tsx content
-      const rootElement = document.getElementById('root');
-      if (!rootElement) {
-          throw new Error("Could not find root element to mount to");
+
+    <!-- The main content area to be printed -->
+    <div id="printable-area" class="w-full px-1 py-2 bg-white shadow-lg">
+      <!-- Header section -->
+      <div class="text-center">
+        <h1 class="text-2xl font-extrabold">บริษัท ทีเอ็มที สตีล จำกัด (มหาชน)</h1>
+        <p class="text-xs">สาขาวังน้อย : 332-333 หมู่ที่5 ถนนพหลโยธิน ต.ลำไทร อ.วังน้อย พระนครศรีอยุธยา 13170</p>
+      </div>
+
+      <!-- Document title -->
+      <div class="text-center mt-4">
+        <h2 class="text-base font-bold underline">ใบชั่งน้ำหนัก</h2>
+      </div>
+
+      <!-- Top info section with default layout -->
+      <div class="grid grid-cols-2 gap-x-4 mt-6">
+        <div class="space-y-2">
+          <div class="row default"><span class="label">เลขที่บัตร</span><span class="colon">:</span><span id="ticket-id-val" class="value"></span></div>
+          <div class="row default"><span class="label">ทะเบียนรถ</span><span class="colon">:</span><span id="vehicle-id-val" class="value"></span></div>
+        </div>
+        <div class="space-y-2">
+          <div class="row default"><span class="label">คู่ค้า</span><span class="colon">:</span><span id="partner-name-val" class="value"></span></div>
+          <div class="row default"><span class="label">สินค้า</span><span class="colon">:</span><span id="product-name-val" class="value"></span></div>
+        </div>
+      </div>
+
+      <hr class="border-t border-dashed border-black my-4" />
+
+      <!-- Weight details section with tight layout for alignment -->
+      <div class="grid grid-cols-2 gap-x-6">
+        <div class="space-y-2">
+          <h3 class="font-bold text-center">รถเข้า</h3>
+          <div class="row tight"><span class="label">วันที่ชั่งเข้า</span><span class="colon">:</span><span id="date-in-val" class="value"></span></div>
+          <div class="row tight"><span class="label">เวลาชั่งเข้า</span><span class="colon">:</span><span id="time-in-val" class="value"></span></div>
+          <div class="row tight"><span class="label">น้ำหนักรถเข้า</span><span class="colon">:</span><span class="value">- กก.</span></div>
+          <div class="row tight"><span class="label">น้ำหนักตามบิล</span><span class="colon">:</span><span class="value">- กก.</span></div>
+          <div class="row tight"><span class="label">น้ำหนักต่าง</span><span class="colon">:</span><span class="value">- กก.</span></div>
+        </div>
+        <div class="space-y-2">
+          <h3 class="font-bold text-center">รถออก</h3>
+          <div class="row tight"><span class="label">วันที่ชั่งออก</span><span class="colon">:</span><span id="date-out-val" class="value"></span></div>
+          <div class="row tight"><span class="label">เวลาชั่งออก</span><span class="colon">:</span><span id="time-out-val" class="value"></span></div>
+          <div class="row tight"><span class="label">น้ำหนักรถเข้า</span><span class="colon">:</span><span class="value">- กก.</span></div>
+          <div class="row tight"><span class="label">น้ำหนักรถออก</span><span class="colon">:</span><span class="value">- กก.</span></div>
+          <div class="row tight"><span class="label">น้ำหนักสุทธิ</span><span class="colon">:</span><span id="net-weight-val" class="value"></span></div>
+        </div>
+      </div>
+
+      <hr class="border-t border-dashed border-black my-4" />
+
+      <!-- Notes section -->
+      <div class="mt-4">
+        <div class="row tight"><span class="label">หมายเหตุ</span><span class="colon">:</span><span id="notes-val" class="value"></span></div>
+      </div>
+
+      <!-- Signature section -->
+      <div class="mt-4 text-right">
+        <p>พนักงานชั่งน้ำหนัก........................................</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global variable to store parsed data
+    let parsedDataStore = [];
+
+    // Function to update date and time fields
+    function updateDateTime() {
+      const now = new Date();
+      const dateOptions = { day: '2-digit', month: '2-digit', year: 'numeric', calendar: 'buddhist' };
+      const formattedDate = new Intl.DateTimeFormat('th-TH', dateOptions).format(now).replace(/\//g, '/');
+      const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      const formattedTime = new Intl.DateTimeFormat('en-GB', timeOptions).format(now);
+      
+      document.getElementById('date-in-val').textContent = formattedDate;
+      document.getElementById('time-in-val').textContent = formattedTime;
+      document.getElementById('date-out-val').textContent = formattedDate;
+      document.getElementById('time-out-val').textContent = formattedTime;
+    }
+
+    // Function to process pasted data from the textarea
+    function processPastedData() {
+      const pasteArea = document.getElementById('paste-area');
+      const data = pasteArea.value.trim();
+      const doSelect = document.getElementById('do-select');
+
+      if (!data) {
+        console.warn('No data pasted.');
+        return;
       }
-      const root = ReactDOM.createRoot(rootElement);
-      root.render(
-          <React.StrictMode>
-              <App />
-          </React.StrictMode>
-      );
-    </script>
+      
+      // Clear previous data
+      doSelect.innerHTML = '';
+      
+      const lines = data.split('\n');
+      const uniqueDoData = new Map(); // Use a Map for unique entries to avoid duplicates
+
+      lines.forEach(line => {
+        const parts = line.split('\t');
+        // Check if the line has enough columns and required fields are not empty
+        if (parts.length >= 6 && parts[0].trim() !== '' && parts[1].trim() !== '' && parts[5].trim() !== '') {
+          const doNumber = parts[0].trim();
+          // If we haven't seen this DO number before, store its data
+          if (!uniqueDoData.has(doNumber)) {
+            const vehicleId = parts[1].trim();
+            const partnerName = parts[5].trim(); // Get partner name from the 6th column
+            uniqueDoData.set(doNumber, { do: doNumber, vehicle: vehicleId, partner: partnerName });
+          }
+        }
+      });
+
+      // Convert Map values to array for the global store
+      parsedDataStore = Array.from(uniqueDoData.values());
+
+      if (parsedDataStore.length === 0) {
+        doSelect.innerHTML = '<option>ไม่พบข้อมูล DO ที่ถูกต้อง</option>';
+        doSelect.disabled = true;
+        return;
+      }
+      
+      // Populate the select dropdown
+      doSelect.disabled = false;
+      const defaultOption = document.createElement('option');
+      defaultOption.textContent = '-- เลือก DO --';
+      defaultOption.value = '';
+      doSelect.appendChild(defaultOption);
+
+      // Iterate over the stored unique data to create dropdown options
+      parsedDataStore.forEach(entry => {
+        const option = document.createElement('option');
+        option.value = entry.do;
+        // Display DO number and Partner Name in the option text
+        option.textContent = `${entry.do} (${entry.partner})`; 
+        doSelect.appendChild(option);
+      });
+      
+      // Reset the form fields
+      updateFormOnDoSelect();
+    }
+    
+    // Function to update the form based on DO selection
+    function updateFormOnDoSelect() {
+        const selectedDo = document.getElementById('do-select').value;
+        const vehicleIdEl = document.getElementById('vehicle-id-val');
+        const partnerNameEl = document.getElementById('partner-name-val');
+        const notesEl = document.getElementById('notes-val');
+
+        if (selectedDo) {
+            // Find the first matching entry for the selected DO
+            const entry = parsedDataStore.find(item => item.do === selectedDo);
+            if (entry) {
+                vehicleIdEl.textContent = entry.vehicle;
+                partnerNameEl.textContent = entry.partner;
+                notesEl.textContent = `DO NO. ${entry.do}`;
+            }
+        } else {
+            // Clear fields if no DO is selected
+            vehicleIdEl.textContent = '';
+            partnerNameEl.textContent = '';
+            notesEl.textContent = '';
+        }
+    }
+
+    // Function to update product name
+    function updateProduct() {
+        const selectedProduct = document.getElementById('product-select').value;
+        document.getElementById('product-name-val').textContent = selectedProduct;
+    }
+
+    // Function to update net weight
+    function updateNetWeight() {
+        const weightInput = document.getElementById('net-weight-input').value;
+        const netWeight = parseFloat(weightInput) || 0;
+        document.getElementById('net-weight-val').textContent = `${netWeight.toLocaleString('en-US')} กก.`;
+    }
+
+    // Add event listeners
+    document.getElementById('process-data-btn').addEventListener('click', processPastedData);
+    document.getElementById('do-select').addEventListener('change', updateFormOnDoSelect);
+    document.getElementById('product-select').addEventListener('change', updateProduct);
+    document.getElementById('net-weight-input').addEventListener('input', updateNetWeight);
+
+    // Initial setup on page load
+    window.onload = function() {
+      updateDateTime();
+      updateProduct();
+      updateNetWeight();
+      const randomTicket = `08-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
+      document.getElementById('ticket-id-val').textContent = randomTicket;
+    };
+  </script>
 </body>
 </html>
-
-
