@@ -75,6 +75,11 @@
       padding-left: 28px; /* Space after the colon */
       flex: 1; 
     }
+    /* Custom style for larger form controls */
+    .form-control-lg {
+        font-size: 25px !important;
+        padding: 0.5rem !important;
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-base leading-tight">
@@ -86,29 +91,29 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Data Input Area -->
             <div>
-                <label for="paste-area" class="block text-sm font-medium text-gray-700 mb-1">1. วางข้อมูลที่คัดลอกมาที่นี่:</label>
+                <label for="paste-area" class="block text-lg font-medium text-gray-700 mb-1">1. วางข้อมูลที่คัดลอกมาที่นี่:</label>
                 <textarea id="paste-area" rows="8" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="วางข้อมูลจาก Excel ที่นี่ โปรแกรมจะดึงข้อมูลที่จำเป็นให้เอง"></textarea>
                 <button id="process-data-btn" class="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">ประมวลผลข้อมูล</button>
             </div>
             <!-- Manual Inputs & Actions -->
             <div class="space-y-4">
                  <div>
-                    <label for="do-select" class="block text-sm font-medium text-gray-700">2. เลือกเลขที่ DO:</label>
-                    <select id="do-select" class="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <label for="do-select" class="block text-lg font-medium text-gray-700">2. เลือกเลขที่ DO:</label>
+                    <select id="do-select" class="form-control-lg mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" disabled>
                         <option>--- กรุณาประมวลผลข้อมูลก่อน ---</option>
                     </select>
                 </div>
                 <div>
-                    <label for="product-select" class="block text-sm font-medium text-gray-700">3. เลือกสินค้า:</label>
-                    <select id="product-select" class="mt-1 block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <label for="product-select" class="block text-lg font-medium text-gray-700">3. เลือกสินค้า:</label>
+                    <select id="product-select" class="form-control-lg mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                         <option>เหล็กม้วนสลิต</option>
                         <option>เหล็กม้วนสลิต + เศษรังผึ้ง</option>
                         <option>เศษคืนลูกค้า</option>
                     </select>
                 </div>
                 <div>
-                    <label for="net-weight-input" class="block text-sm font-medium text-gray-700">4. ระบุน้ำหนักสุทธิ (กก.):</label>
-                    <input type="number" id="net-weight-input" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น 2408">
+                    <label for="net-weight-input" class="block text-lg font-medium text-gray-700">4. ระบุน้ำหนักสุทธิ (กก.):</label>
+                    <input type="number" id="net-weight-input" class="form-control-lg mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น 2408">
                 </div>
                 <div class="text-right">
                     <button onclick="window.print()" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">พิมพ์บัตรชั่ง</button>
@@ -128,7 +133,7 @@
 
       <!-- Document title -->
       <div class="text-center mt-2">
-        <h2 class="text-[22px] font-bold">ใบชั่งน้ำหนัก</h2>
+        <h2 class="text-[25px] font-bold">ใบชั่งน้ำหนัก</h2>
       </div>
 
       <!-- Top info section with default layout -->
