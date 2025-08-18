@@ -1,385 +1,1670 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <link rel="icon" type="image/png" href="https://img.icons8.com/?size=60&id=Aw985SswKomO&format=png">
-
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ใบชั่งน้ำหนัก</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Note: Angsana New is a system font, no Google Font link is needed. It will rely on the user's system having the font. -->
-  <style>
-    /* Use Angsana New font as the base, with fallbacks */
-    body { 
-      font-family: 'Angsana New', 'Cordia New', serif; 
-    }
-    /* Print-specific styles */
-    @media print {
-      @page { 
-        size: 5.5in 9.5in; 
-        margin: 0.05in; 
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard รายงานภาพรวม</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; }
+        .main-nav-active { background-color: #2563eb; color: white; }
+        .main-nav-inactive { background-color: white; color: #334155; }
+        .tab-active { border-color: #2563eb; color: #1e40af; }
+        .tab-inactive { border-color: transparent; color: #475569; }
+        .pagination-btn { transition: background-color 0.2s; }
+        .pagination-btn-active { background-color: #2563eb; color: white; }
+        .pagination-btn-inactive { background-color: white; color: #374151; }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    </style>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
       }
-      .no-print { 
-        display: none !important; 
-      }
-      body { 
-        background-color: #ffffff !important; 
-        margin: 0; 
-      }
-      #printable-area { 
-        box-shadow: none !important; 
-        width: 100% !important; 
-        margin: 0 !important; 
-      }
     }
-    /* Flexbox row for inline elements */
-    .row { 
-      display: flex; 
-      align-items: baseline; 
-    }
-    .row .label { 
-      white-space: nowrap; /* Prevent label text from wrapping */
-    }
-    .row .colon { 
-      text-align: center; 
-    }
-    .row .value { 
-      /* Allow value text to wrap by default */
-      white-space: normal; 
-    }
-
-    /* Default row styling for the top section */
-    .row.default .label { 
-      width: auto; 
-    }
-    .row.default .colon { 
-      width: auto; 
-      padding: 0 4px; 
-    }
-    .row.default .value { 
-      padding-left: 0; 
-      flex: 1; 
-      white-space: nowrap; /* Prevent wrapping for header values */
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* Tighter row styling for date/time/weight section to align colons */
-    .row.tight { 
-      width: 100%; 
-    }
-    .row.tight .label { 
-      width: 115px; /* Fixed width to align colons */
-    }
-    .row.tight .colon { 
-      width: 10px; 
-    }
-    .row.tight .value { 
-      padding-left: 28px; /* Space after the colon */
-      flex: 1; 
-    }
-    /* Custom style for larger form controls */
-    .form-control-lg {
-        font-size: 25px !important;
-        padding: 0.5rem !important;
-    }
-  </style>
+    </script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        window.firebase = { initializeApp, getFirestore, collection, getDocs, query, orderBy };
+    </script>
 </head>
-<body class="bg-gray-100 text-base leading-tight">
-  <div class="w-full max-w-4xl mx-auto p-4">
-    
-    <!-- Control Panel - Not for printing -->
-    <div class="no-print bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
-        <h3 class="text-lg font-bold mb-4 text-gray-700">เครื่องมือสร้างใบชั่ง</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Data Input Area -->
-            <div>
-                <label for="paste-area" class="block text-lg font-medium text-gray-700 mb-1">1. วางข้อมูลที่คัดลอกมาที่นี่:</label>
-                <textarea id="paste-area" rows="8" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="วางข้อมูลจาก Excel ที่นี่ โปรแกรมจะดึงข้อมูลที่จำเป็นให้เอง"></textarea>
-<button id="process-data-btn" class="mt-2 w-full bg-blue-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-  ประมวลผลข้อมูล
-</button>
+<body>
+    <div id="root"></div>
 
-            </div>
-            <!-- Manual Inputs & Actions -->
-            <div class="space-y-4">
-                 <div>
-                    <label for="do-select" class="block text-lg font-medium text-gray-700">2. เลือกเลขที่ DO:</label>
-                    <select id="do-select" class="form-control-lg mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" disabled>
-                        <option>--- กรุณาประมวลผลข้อมูลก่อน ---</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="product-select" class="block text-lg font-medium text-gray-700">3. เลือกสินค้า:</label>
-                    <select id="product-select" class="form-control-lg mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                        <option>เหล็กม้วนสลิต</option>
-                        <option>เหล็กม้วนสลิต + เศษรังผึ้ง</option>
-                        <option>เศษคืนลูกค้า</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="net-weight-input" class="block text-lg font-medium text-gray-700">4. ระบุน้ำหนักสุทธิ (กก.):</label>
-                    <input type="number" id="net-weight-input" class="form-control-lg mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น 2408">
-                </div>
-                <div class="text-right">
-                    <button 
-  onclick="printAndIncrement()" 
-  class="bg-green-600 text-white px-6 py-2 text-2xl font-bold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-  พิมพ์บัตรชั่ง
-</button>
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useMemo } from 'react';
+        import ReactDOM from 'react-dom/client';
 
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- The main content area to be printed -->
-    <div id="printable-area" class="w-full px-1 py-2 bg-white shadow-lg">
-      <!-- Header section -->
-      <div class="text-center">
-        <h1 class="text-[35px] font-extrabold">บริษัท ทีเอ็มที สตีล จำกัด (มหาชน)</h1>
-        <p class="text-[19px]">สาขาวังน้อย : 332-333 หมู่ที่5 ถนนพหลโยธิน ต.ลำไทร อ.วังน้อย พระนครศรีอยุธยา 13170</p>
-      </div>
-
-      <!-- Document title -->
-      <div class="text-center mt-2">
-        <h2 class="text-[25px] font-bold">ใบชั่งน้ำหนัก</h2>
-      </div>
-
-      <!-- Top info section with default layout -->
-      <div class="grid grid-cols-2 gap-x-4 mt-2 text-[24px]">
-        <div class="space-y-1">
-          <div class="row default"><span class="label">เลขที่บัตร</span><span class="colon">:</span><span id="ticket-id-val" class="value"></span></div>
-          <div class="row default"><span class="label">ทะเบียนรถ</span><span class="colon">:</span><span id="vehicle-id-val" class="value"></span></div>
-        </div>
-        <div class="space-y-1">
-          <div class="row default"><span class="label">คู่ค้า</span><span class="colon">:</span><span id="partner-name-val" class="value"></span></div>
-          <div class="row default"><span class="label">สินค้า</span><span class="colon">:</span><span id="product-name-val" class="value"></span></div>
-        </div>
-      </div>
-
-      <hr class="border-t border-dashed border-black my-2" />
-
-      <!-- Weight details section headers -->
-      <div class="grid grid-cols-2 gap-x-6 text-[24px]">
-          <h3 class="font-bold text-center">รถเข้า</h3>
-          <h3 class="font-bold text-center">รถออก</h3>
-      </div>
-      <hr class="border-t border-dashed border-black my-2" />
-      
-      <!-- Weight details section data -->
-      <div class="grid grid-cols-2 gap-x-6 text-[24px]">
-        <div class="space-y-1">
-          <div class="row tight"><span class="label">วันที่ชั่งเข้า</span><span class="colon">:</span><span id="date-in-val" class="value"></span></div>
-          <div class="row tight"><span class="label">เวลาชั่งเข้า</span><span class="colon">:</span><span id="time-in-val" class="value"></span></div>
-          <div class="row tight"><span class="label">น้ำหนักรถเข้า</span><span class="colon">:</span><span class="value">- กก.</span></div>
-          <div class="row tight"><span class="label">น้ำหนักตามบิล</span><span class="colon">:</span><span class="value">- กก.</span></div>
-          <div class="row tight"><span class="label">น้ำหนักต่าง</span><span class="colon">:</span><span class="value">- กก.</span></div>
-        </div>
-        <div class="space-y-1">
-          <div class="row tight"><span class="label">วันที่ชั่งออก</span><span class="colon">:</span><span id="date-out-val" class="value"></span></div>
-          <div class="row tight"><span class="label">เวลาชั่งออก</span><span class="colon">:</span><span id="time-out-val" class="value"></span></div>
-          <div class="row tight"><span class="label">น้ำหนักรถเข้า</span><span class="colon">:</span><span class="value">- กก.</span></div>
-          <div class="row tight"><span class="label">น้ำหนักรถออก</span><span class="colon">:</span><span class="value">- กก.</span></div>
-          <div class="row tight"><span class="label">น้ำหนักสุทธิ</span><span class="colon">:</span><span id="net-weight-val" class="value"></span></div>
-        </div>
-      </div>
-
-      <hr class="border-t border-dashed border-black my-2" />
-
-      <!-- Notes section -->
-      <div class="mt-2 text-[24px]">
-        <div class="row tight"><span class="label">หมายเหตุ</span><span class="colon">:</span><span id="notes-val" class="value"></span></div>
-      </div>
-
-      <!-- Signature section -->
-      <div class="mt-1 text-right text-[24px]">
-        <p>พนักงานชั่งน้ำหนัก........................................</p>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Global variable to store parsed data
-    let parsedDataStore = [];
-
-    // Function to get and display the current ticket number
-    function loadTicketNumber() {
-        // Get the counter from localStorage, default to 1 if not found
-        let ticketCounter = localStorage.getItem('weighingTicketCounter');
-        if (ticketCounter === null) {
-            ticketCounter = 1;
-        }
-        // Format the number (e.g., 08-0001)
-        const formattedTicket = `08-${String(ticketCounter).padStart(4, '0')}`;
-        document.getElementById('ticket-id-val').textContent = formattedTicket;
-        return parseInt(ticketCounter);
-    }
-
-    // Function to print the slip and increment the ticket number
-    function printAndIncrement() {
-        window.print(); // Trigger the print dialog
+        // ##################################################################
+        // ### CONFIGURATIONS ###
+        // ##################################################################
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwp0yu3ryGYYaaSIkTkOs64BFI3CYllPcQPJe3HcpldhPqHnggmmjTC1uSOV_xHLpUh/exec'; 
         
-        // Get the current counter, increment it, and save back to localStorage
-        let currentCounter = localStorage.getItem('weighingTicketCounter');
-        if (currentCounter === null) {
-            currentCounter = 1;
-        }
-        const nextCounter = parseInt(currentCounter) + 1;
-        localStorage.setItem('weighingTicketCounter', nextCounter);
-        
-        // Load the next ticket number to display on the screen for the next slip
-        loadTicketNumber();
-    }
+        const firebaseConfig = {
+          apiKey: "AIzaSyCEN8ANVFzs2dExfJP-HDTuRGxtV3TYzHU",
+          authDomain: "sodium-burner-428202-f9.firebaseapp.com",
+          projectId: "sodium-burner-428202-f9",
+          storageBucket: "sodium-burner-428202-f9.appspot.com",
+          messagingSenderId: "46765828618",
+          appId: "1:46765828618:web:59eb170cfcd92c0e578df3",
+          measurementId: "G-MJ19J3TF2R"
+        };
 
-    // Function to update date and time fields
-    function updateDateTime() {
-      const now = new Date();
-      const dateOptions = { day: '2-digit', month: '2-digit', year: 'numeric', calendar: 'buddhist' };
-      const formattedDate = new Intl.DateTimeFormat('th-TH', dateOptions).format(now).replace(/\//g, '/');
-      const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-      const formattedTime = new Intl.DateTimeFormat('en-GB', timeOptions).format(now);
-      
-      document.getElementById('date-in-val').textContent = formattedDate;
-      document.getElementById('time-in-val').textContent = formattedTime;
-      document.getElementById('date-out-val').textContent = formattedDate;
-      document.getElementById('time-out-val').textContent = formattedTime;
-    }
-
-    // Function to process pasted data from the textarea
-    function processPastedData() {
-      const pasteArea = document.getElementById('paste-area');
-      const data = pasteArea.value.trim();
-      const doSelect = document.getElementById('do-select');
-
-      if (!data) {
-        console.warn('No data pasted.');
-        return;
-      }
-      
-      // Clear previous data
-      doSelect.innerHTML = '';
-      
-      const lines = data.split('\n');
-      const doDataMap = new Map(); // Use a Map to aggregate data per DO
-
-      lines.forEach(line => {
-        const parts = line.split('\t');
-        // Material is in the 5th column (index 4)
-        if (parts.length >= 6 && parts[0].trim() !== '' && parts[4].trim() !== '') {
-          const doNumber = parts[0].trim();
-          const material = parts[4].trim();
-
-          if (!doDataMap.has(doNumber)) {
-            // First time seeing this DO, create a new entry
-            const vehicleId = parts[1].trim();
-            const partnerName = parts[5].trim();
-            doDataMap.set(doNumber, {
-              do: doNumber,
-              vehicle: vehicleId,
-              partner: partnerName,
-              materials: new Set()
-            });
-          }
-          // Add the material to the set for this DO
-          doDataMap.get(doNumber).materials.add(material);
-        }
-      });
-
-      // Convert Map values to array for the global store
-      parsedDataStore = Array.from(doDataMap.values());
-
-      if (parsedDataStore.length === 0) {
-        doSelect.innerHTML = '<option>ไม่พบข้อมูล DO ที่ถูกต้อง</option>';
-        doSelect.disabled = true;
-        return;
-      }
-      
-      // Populate the select dropdown
-      doSelect.disabled = false;
-      const defaultOption = document.createElement('option');
-      defaultOption.textContent = '-- เลือก DO --';
-      defaultOption.value = '';
-      doSelect.appendChild(defaultOption);
-
-      parsedDataStore.forEach(entry => {
-        const option = document.createElement('option');
-        option.value = entry.do;
-        option.textContent = `${entry.do} (${entry.partner})`; 
-        doSelect.appendChild(option);
-      });
-      
-      // Reset the form fields
-      updateFormOnDoSelect();
-    }
-    
-    // Function to update the form based on DO selection
-    function updateFormOnDoSelect() {
-        const selectedDo = document.getElementById('do-select').value;
-        const vehicleIdEl = document.getElementById('vehicle-id-val');
-        const partnerNameEl = document.getElementById('partner-name-val');
-        const notesEl = document.getElementById('notes-val');
-        const productSelect = document.getElementById('product-select');
-
-        if (selectedDo) {
-            const entry = parsedDataStore.find(item => item.do === selectedDo);
-            if (entry) {
-                vehicleIdEl.textContent = entry.vehicle;
-                partnerNameEl.textContent = entry.partner;
-                notesEl.textContent = `DO NO. ${entry.do}`;
-
-                // Automatically select the product based on materials
-                const hasSlit = entry.materials.has('2SLIT');
-                const hasScrap = entry.materials.has('2SCRAP-W');
-
-                if (hasSlit && hasScrap) {
-                    productSelect.value = 'เหล็กม้วนสลิต + เศษรังผึ้ง';
-                } else if (hasSlit) {
-                    productSelect.value = 'เหล็กม้วนสลิต';
-                } else if (hasScrap) {
-                    productSelect.value = 'เศษคืนลูกค้า';
-                }
-                updateProduct(); // Update the display in the printable area
+        // ##################################################################
+        // ### UTILITY FUNCTIONS (ฟังก์ชันช่วยเหลือ) ###
+        // ##################################################################
+        const parseDate = (dateString) => {
+            if (!dateString) return null;
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return null;
+            if (date.getFullYear() > 2200) { date.setFullYear(date.getFullYear() - 543); }
+            return date;
+        };
+        const formatDate = (dateString) => {
+            if (!dateString) return 'N/A';
+            const date = parseDate(dateString);
+            if (!date) return 'Invalid Date';
+            return date.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+        };
+        const formatSimpleDate = (dateString) => {
+            if (!dateString) return 'N/A';
+            const date = parseDate(dateString);
+            if (!date) return 'Invalid Date';
+            return date.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
+        const formatTime = (timeValue) => {
+            if (!timeValue) return 'N/A';
+            const date = new Date(timeValue);
+            if (isNaN(date.getTime())) {
+                return 'Invalid Time';
             }
-        } else {
-            // Clear fields if no DO is selected
-            vehicleIdEl.textContent = '';
-            partnerNameEl.textContent = '';
-            notesEl.textContent = '';
-            productSelect.selectedIndex = 0; // Reset product dropdown to the first option
-            updateProduct();
-        }
-    }
+            return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+        };
+        const formatNumber = (num, digits = 2) => {
+            const number = Number(num);
+            if (isNaN(number)) return '0.00';
+            return number.toLocaleString('th-TH', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+        };
+        const formatPrice = (price) => formatNumber(price, 2);
+        const getThaiMonthName = (monthIndex) => ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'][monthIndex];
+        const calculateTotalSparePartsPrice = (priceString) => {
+            if (!priceString) return 0;
+            return String(priceString).split(/[,;|+]/).map(p => parseFloat(p.trim())).filter(p => !isNaN(p)).reduce((sum, current) => sum + current, 0);
+        };
+        const calculateTotalCost = (item) => {
+            const sparePartsPrice = calculateTotalSparePartsPrice(item['ราคาอะไหล่']);
+            const servicePrice = parseFloat(String(item['ราคา'])) || 0;
+            return sparePartsPrice + servicePrice;
+        };
+        const sumDurations = (durations) => {
+            if (!durations || durations.length === 0) return '00:00';
+            const totalMinutes = durations.reduce((acc, duration) => {
+                const minutes = parseInt(duration, 10) || 0;
+                return acc + minutes;
+            }, 0);
 
-    // Function to update product name in the printable area
-    function updateProduct() {
-        const selectedProduct = document.getElementById('product-select').value;
-        document.getElementById('product-name-val').textContent = selectedProduct;
-    }
+            if (totalMinutes === 0) return '00:00';
 
-    // Function to update net weight
-    function updateNetWeight() {
-        const weightInput = document.getElementById('net-weight-input').value;
-        const netWeight = parseFloat(weightInput) || 0;
-        document.getElementById('net-weight-val').textContent = `${netWeight.toLocaleString('en-US')} กก.`;
-    }
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
 
-    // Add event listeners
-    document.getElementById('process-data-btn').addEventListener('click', processPastedData);
-    document.getElementById('do-select').addEventListener('change', updateFormOnDoSelect);
-    document.getElementById('product-select').addEventListener('change', updateProduct);
-    document.getElementById('net-weight-input').addEventListener('input', updateNetWeight);
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        };
+        const processTypeData = (data) => {
+            const stats = {};
+            data.forEach(item => {
+                const type = item['ประเภท'] || 'ไม่ระบุ';
+                const cost = calculateTotalCost(item);
+                const vehicleNumber = item['เบอร์รถ'] || 'ไม่ระบุ';
 
-    // Initial setup on page load
-    window.onload = function() {
-      updateDateTime();
-      updateProduct();
-      updateNetWeight();
-      loadTicketNumber(); // Load the auto-incrementing ticket number
-    };
-  </script>
+                if (!stats[type]) {
+                    stats[type] = { count: 0, totalCost: 0, regNumbers: new Set(), vehicleDetails: {} };
+                }
+
+                stats[type].count++;
+                stats[type].totalCost += cost;
+
+                if (vehicleNumber !== 'ไม่ระบุ') {
+                    stats[type].regNumbers.add(vehicleNumber);
+
+                    if (!stats[type].vehicleDetails[vehicleNumber]) {
+                        stats[type].vehicleDetails[vehicleNumber] = { count: 0, totalCost: 0 };
+                    }
+                    stats[type].vehicleDetails[vehicleNumber].count++;
+                    stats[type].vehicleDetails[vehicleNumber].totalCost += cost;
+                }
+            });
+
+            Object.keys(stats).forEach(type => {
+                stats[type].avgCost = stats[type].count > 0 ? stats[type].totalCost / stats[type].count : 0;
+            });
+            return stats;
+        };
+        const processVehicleData = (data) => {
+            const stats = {};
+            data.forEach(item => {
+                const vehicleNumber = item['เบอร์รถ'] || 'ไม่ระบุ';
+                if (vehicleNumber === 'ไม่ระบุ') return;
+                const cost = calculateTotalCost(item);
+                if (!stats[vehicleNumber]) {
+                    stats[vehicleNumber] = { count: 0, totalCost: 0, items: [], types: {} };
+                }
+                stats[vehicleNumber].count++;
+                stats[vehicleNumber].totalCost += cost;
+                stats[vehicleNumber].items.push(item);
+                const type = item['ประเภท'] || 'ไม่ระบุ';
+                stats[vehicleNumber].types[type] = (stats[vehicleNumber].types[type] || 0) + 1;
+            });
+            Object.keys(stats).forEach(vehicle => {
+                stats[vehicle].avgCost = stats[vehicle].count > 0 ? stats[vehicle].totalCost / stats[vehicle].count : 0;
+                let maxTypeCount = 0;
+                let mostCommonType = 'ไม่ระบุ';
+                Object.entries(stats[vehicle].types).forEach(([type, count]) => {
+                    if (count > maxTypeCount) {
+                        mostCommonType = type;
+                        maxTypeCount = count;
+                    }
+                });
+                stats[vehicle].mostCommonType = mostCommonType;
+            });
+            return stats;
+        };
+        
+        // ##################################################################
+        // ### SHARED COMPONENTS (คอมโพเนนต์ที่ใช้ร่วมกัน) ###
+        // ##################################################################
+        const Icons = ({ name, className = "w-6 h-6" }) => {
+            const iconPaths = {
+                toolbox: <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 9.75v2.25-2.25H2.25v2.25-2.25H21.75zM2.25 9.75v9.75a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V9.75m-19.5 0v-2.25a2.25 2.25 0 0 1 2.25-2.25h15a2.25 2.25 0 0 1 2.25 2.25v2.25m-15-4.5-3 3m15 0-3-3" />,
+                fuelPump: <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.353-.026.692-.026 1.038 0 1.13.094 1.976 1.057 1.976 2.192V7.5M8.25 7.5h2.25m0 0h2.25m0 0v.113c0 .722-.386 1.41-1.002 1.796a12.043 12.043 0 0 1-3.498 0c-.616-.386-1.002-1.074-1.002-1.796V7.5m7.5 0v-1.392c0-1.135-.845-2.098-1.976-2.192a12.043 12.043 0 0 0-3.498 0C9.095 3.91 8.25 4.874 8.25 6.008V7.5m7.5 0h-2.25m2.25 0a2.25 2.25 0 0 1-2.25 2.25h-2.25a2.25 2.25 0 0 1-2.25-2.25M15 12.75a2.25 2.25 0 0 1 2.25-2.25h.75a2.25 2.25 0 0 1 2.25 2.25v.75a2.25 2.25 0 0 1-2.25 2.25h-.75a2.25 2.25 0 0 1-2.25-2.25v-.75Z" />,
+                bolt: <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />,
+                chevronDown: <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />,
+                refresh: <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0011.664 0l3.181-3.183m-11.664 0l4.992-4.993m-4.993 0l-3.181 3.183a8.25 8.25 0 000 11.664l3.181 3.183" />,
+                up: <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3l7.5 7.5" />,
+                down: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21l-7.5-7.5" />,
+                balance: <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />,
+            };
+            return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>{iconPaths[name]}</svg>;
+        };
+        const Loader = ({text}) => (
+            <div className="flex flex-col justify-center items-center h-80 text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-lg text-gray-600">{text}</p>
+            </div>
+        );
+        const SummaryCard = ({ title, value, unit, icon, color, footerText }) => (
+            <div className={`bg-white p-5 rounded-xl shadow-md flex flex-col justify-between ${color.border} border-l-4`}>
+                <div className="flex items-start space-x-4">
+                    <div className={`p-3 rounded-full ${color.bg}`}>
+                        <div className={color.icon}>{icon}</div>
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-gray-500">{title}</p>
+                        <p className="text-2xl font-bold text-gray-800">{value} <span className="text-base font-medium">{unit}</span></p>
+                    </div>
+                </div>
+                {footerText && <p className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">{footerText}</p>}
+            </div>
+        );
+        const BarChart = ({ data, color, title }) => {
+            const maxValue = Math.max(...data.map(d => d.value), 0);
+            return (
+                <div className="bg-white rounded-lg shadow-md p-3 sm:p-4">
+                    <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-slate-800">{title}</h3>
+                    <div className="mt-4 space-y-3">
+                        {data.map((item, index) => (
+                            <div key={index} className="chart-container flex items-center text-sm">
+                                <div className="w-1/3 sm:w-1/4 font-medium truncate pr-2 text-slate-700">{item.label}</div>
+                                <div className="w-2/3 sm:w-3/4 flex items-center">
+                                    <div className={`chart-bar rounded-sm ${color}`} style={{ width: maxValue > 0 ? `${(item.value / maxValue) * 100}%` : '0%', height: '24px' }}></div>
+                                    <span className="ml-2 whitespace-nowrap font-medium text-slate-700">{item.displayValue}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+        const PaginatedDataTable = ({ title, data, columns }) => {
+            const ITEMS_PER_PAGE = 20;
+            const [currentPage, setCurrentPage] = useState(1);
+            useEffect(() => { setCurrentPage(1); }, [data]);
+            const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const currentData = data.slice(startIndex, endIndex);
+            const goToPage = (page) => { setCurrentPage(Math.max(1, Math.min(page, totalPages))); };
+            return (
+                <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md mt-6">
+                    <h2 className="text-lg font-semibold text-gray-700 mb-4">{title}</h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-gray-500">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                                <tr>{columns.map(col => <th key={col.key} scope="col" className="px-6 py-3">{col.label}</th>)}</tr>
+                            </thead>
+                            <tbody>
+                                {currentData.map((row, index) => (
+                                    <tr key={index} className="bg-white border-b hover:bg-gray-50">
+                                        {columns.map(col => (
+                                            <td key={col.key} className="px-6 py-4 whitespace-nowrap">
+                                                {col.render ? col.render(row[col.key]) : row[col.key]}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {totalPages > 1 && (
+                        <div className="flex justify-between items-center mt-4 text-sm">
+                            <span className="text-gray-600">หน้า {currentPage} จาก {totalPages} (ทั้งหมด {data.length} รายการ)</span>
+                            <div className="flex items-center space-x-1">
+                                <button onClick={() => goToPage(1)} disabled={currentPage === 1} className="pagination-btn pagination-btn-inactive px-3 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">« แรก</button>
+                                <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} className="pagination-btn pagination-btn-inactive px-3 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">‹ ก่อนหน้า</button>
+                                <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages} className="pagination-btn pagination-btn-inactive px-3 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">ถัดไป ›</button>
+                                <button onClick={() => goToPage(totalPages)} disabled={currentPage === totalPages} className="pagination-btn pagination-btn-inactive px-3 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">สุดท้าย »</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ##################################################################
+        // ### REPAIR APP SUB-COMPONENTS (คอมโพเนนต์ย่อยของแอปแจ้งซ่อม) ###
+        // ##################################################################
+        const RepairTableRow = ({ item, index }) => {
+            const totalCost = calculateTotalCost(item);
+            return (
+                <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-100/50 text-sm">
+                    <td className="border-b border-gray-200 px-4 py-3 text-slate-600">{index}</td>
+                    <td className="border-b border-gray-200 px-4 py-3 text-slate-800 font-medium">{item['เบอร์รถ']}</td>
+                    <td className="border-b border-gray-200 px-4 py-3 text-slate-700">{item['รายการซ่อม']}</td>
+                    <td className="border-b border-gray-200 px-4 py-3 text-slate-700">{item['ประเภท']}</td>
+                    <td className="border-b border-gray-200 px-4 py-3 text-slate-700">{formatDate(item['วันที่แจ้งซ่อม(APP)'])}</td>
+                    <td className="border-b border-gray-200 px-4 py-3 text-slate-700">{formatDate(item['ซ่อมเสร็จ(APP)'])}</td>
+                    <td className="border-b border-gray-200 px-4 py-3 text-right text-slate-700">{formatPrice(calculateTotalSparePartsPrice(item['ราคาอะไหล่']))}</td>
+                    <td className="border-b border-gray-200 px-4 py-3 text-right text-slate-700">{formatPrice(item['ราคา'])}</td>
+                    <td className="border-b border-gray-200 px-4 py-3 text-right font-bold text-emerald-600">{formatPrice(totalCost)}</td>
+                </tr>
+            );
+        };
+        const RepairCard = ({ item, index }) => {
+            const totalCost = calculateTotalCost(item);
+            const sparePartsPrice = calculateTotalSparePartsPrice(item['ราคาอะไหล่']);
+            const servicePrice = parseFloat(String(item['ราคา'])) || 0;
+            return (
+                <div className="mobile-card border border-gray-200 rounded-lg mb-4 p-4 bg-white shadow">
+                    <div className="flex justify-between items-center mb-2">
+                        <div className="font-semibold text-slate-800">#{index} - {item['เบอร์รถ']}</div>
+                        <div className="text-right"><div className="font-bold text-emerald-600">{formatPrice(totalCost)}</div><div className="text-xs text-gray-500">ต้นทุนรวม</div></div>
+                    </div>
+                    <div className="mb-2 text-sm"><div className="font-medium text-slate-700">{item['รายการซ่อม']}</div><div className="text-blue-600 font-medium">{item['ประเภท']}</div></div>
+                    <div className="grid grid-cols-2 gap-1 text-xs text-gray-600 mb-2"><div>แจ้งซ่อม: {formatDate(item['วันที่แจ้งซ่อม(APP)'])}</div><div>ซ่อมเสร็จ: {formatDate(item['ซ่อมเสร็จ(APP)'])}</div></div>
+                    <div className="bg-gray-50 p-2 rounded text-xs"><div className="flex justify-between"><span>ราคาอะไหล่:</span> <span>{formatPrice(sparePartsPrice)}</span></div><div className="flex justify-between"><span>ราคาซ่อม:</span> <span>{formatPrice(servicePrice)}</span></div></div>
+                </div>
+            );
+        };
+        const MonthGroupSection = ({ group, isMobile, onToggle, isExpanded }) => {
+            const monthName = getThaiMonthName(group.month) + ' ' + group.year;
+            return (
+                <div className="mb-4 bg-white rounded-lg shadow-md overflow-hidden">
+                    <div onClick={onToggle} className="month-header bg-blue-50 px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-blue-100 transition-colors duration-200">
+                        <div className="flex items-center">
+                            <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}><Icons name="chevronDown" className="h-5 w-5 mr-2 text-blue-600" /></span>
+                            <h3 className="font-semibold text-blue-800">{monthName}</h3>
+                        </div>
+                        <div className="text-sm text-slate-700"><span className="font-semibold text-slate-800">{group.items.length}</span> รายการ | <span className="font-semibold text-slate-800">{formatPrice(group.totalPrice)}</span> บาท</div>
+                    </div>
+                    <div className={`month-content transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-50'}`}>
+                        <div className="p-0 sm:p-0">
+                            {isMobile ? (<div className="p-2">{group.items.map((item, idx) => <RepairCard key={item['ลำดับที่']} item={item} index={idx + 1}/>)}</div>) 
+                            : (<div className="overflow-x-auto"><table className="w-full border-collapse"><thead><tr className="bg-slate-100"><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">ลำดับที่</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">เบอร์รถ</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">รายการซ่อม</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">ประเภท</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">วันที่แจ้งซ่อม</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">ซ่อมเสร็จ</th><th className="border-b-2 border-gray-200 px-4 py-3 text-right text-sm font-semibold text-slate-800 uppercase tracking-wider">ราคาอะไหล่</th><th className="border-b-2 border-gray-200 px-4 py-3 text-right text-sm font-semibold text-slate-800 uppercase tracking-wider">ราคาซ่อม</th><th className="border-b-2 border-gray-200 px-4 py-3 text-right text-sm font-semibold text-slate-800 uppercase tracking-wider">ต้นทุนรวม</th></tr></thead><tbody>{group.items.map((item, idx) => <RepairTableRow key={item['ลำดับที่']} item={item} index={idx + 1}/>)}</tbody></table></div>)}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        const AllDataTab = ({ data, isMobile }) => {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterType, setFilterType] = useState('');
+            const [filterYear, setFilterYear] = useState('');
+            const [expandedMonths, setExpandedMonths] = useState(new Set());
+            const { uniqueTypes, uniqueYears } = useMemo(() => {
+                const types = new Set(); const years = new Set();
+                data.forEach(item => { if (item.ประเภท) types.add(item.ประเภท); const date = new Date(item['วันที่แจ้งซ่อม(APP)']); if (!isNaN(date.getTime())) years.add(date.getFullYear()); });
+                return { uniqueTypes: Array.from(types).sort(), uniqueYears: Array.from(years).sort((a, b) => b - a) };
+            }, [data]);
+            const filteredData = useMemo(() => {
+                return data.filter(item => {
+                    const date = new Date(item['วันที่แจ้งซ่อม(APP)']);
+                    const itemYear = !isNaN(date.getTime()) ? date.getFullYear().toString() : '';
+                    const matchesSearch = searchTerm === '' || Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()));
+                    const matchesType = filterType === '' || item.ประเภท === filterType;
+                    const matchesYear = filterYear === '' || itemYear === filterYear;
+                    return matchesSearch && matchesType && matchesYear;
+                });
+            }, [data, searchTerm, filterType, filterYear]);
+            const groupDataByMonth = (data) => {
+                const grouped = {};
+                const sortedData = [...data].sort((a, b) => (parseDate(b['วันที่แจ้งซ่อม(APP)']) || 0) - (parseDate(a['วันที่แจ้งซ่อม(APP)']) || 0));
+                sortedData.forEach(item => {
+                    const date = parseDate(item['วันที่แจ้งซ่อม(APP)']); if (!date) return;
+                    const year = date.getFullYear(); const month = date.getMonth(); const key = `${year}-${month}`;
+                    if (!grouped[key]) { grouped[key] = { items: [], totalPrice: 0, year, month }; }
+                    grouped[key].items.push(item); grouped[key].totalPrice += calculateTotalCost(item);
+                });
+                return grouped;
+            };
+            const groupedData = useMemo(() => Object.entries(groupDataByMonth(filteredData)).sort(([keyA], [keyB]) => new Date(keyB.split('-')[0], keyB.split('-')[1]) - new Date(keyA.split('-')[0], keyA.split('-')[1])), [filteredData]);
+            const toggleMonth = (monthKey) => setExpandedMonths(prev => { const newSet = new Set(prev); if (newSet.has(monthKey)) newSet.delete(monthKey); else newSet.add(monthKey); return newSet; });
+            const totalCost = useMemo(() => filteredData.reduce((sum, item) => sum + calculateTotalCost(item), 0), [filteredData]);
+            return (<div><div className="mb-4 sm:mb-6"><div className="flex flex-col sm:flex-row gap-2 sm:gap-4"><input type="text" placeholder="ค้นหา..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto" /><select value={filterType} onChange={e => setFilterType(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"><option value="">ทุกประเภท</option>{uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}</select><select value={filterYear} onChange={e => setFilterYear(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"><option value="">ทุกปี</option>{uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}</select></div></div><div id="monthlyDataContainer">{groupedData.length > 0 ? groupedData.map(([key, group]) => (<MonthGroupSection key={key} group={group} isMobile={isMobile} isExpanded={expandedMonths.has(key)} onToggle={() => toggleMonth(key)} />)) : <div className="text-center py-8 text-gray-500">ไม่พบข้อมูล</div>}</div><div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm sm:text-base"><div><span className="font-semibold">{filteredData.length}</span> รายการ</div><div>ราคารวม: <span className="font-semibold">{formatPrice(totalCost)}</span> บาท</div></div></div>);
+        };
+        const WeeklyTab = ({ data, isMobile }) => {
+            const today = new Date();
+            const [year, setYear] = useState(today.getFullYear());
+            const [month, setMonth] = useState(today.getMonth());
+            const [selectedWeek, setSelectedWeek] = useState(null);
+            const { uniqueYears } = useMemo(() => { const years = new Set(); data.forEach(item => { const date = new Date(item['วันที่แจ้งซ่อม(APP)']); if (!isNaN(date.getTime())) years.add(date.getFullYear()); }); return { uniqueYears: Array.from(years).sort((a, b) => b - a) }; }, [data]);
+            const groupDataByWeek = (data, year, month) => {
+                const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const weeks = [];
+                let currentWeekStart = new Date(firstDay); currentWeekStart.setDate(currentWeekStart.getDate() - firstDay.getDay());
+                while (currentWeekStart <= lastDay) { const weekEnd = new Date(currentWeekStart); weekEnd.setDate(weekEnd.getDate() + 6); weeks.push({ start: new Date(currentWeekStart), end: new Date(weekEnd), items: [] }); currentWeekStart.setDate(currentWeekStart.getDate() + 7); }
+                data.forEach(item => { const date = parseDate(item['วันที่แจ้งซ่อม(APP)']); if (!date) return; for (const week of weeks) { const weekEndMidnight = new Date(week.end); weekEndMidnight.setHours(23, 59, 59, 999); if (date >= week.start && date <= weekEndMidnight) { week.items.push(item); break; } } });
+                return weeks.filter(w => w.items.length > 0);
+            };
+            const { weeklyReport, monthData } = useMemo(() => {
+                const filtered = data.filter(item => { const date = parseDate(item['วันที่แจ้งซ่อม(APP)']); return date && date.getFullYear() === year && date.getMonth() === month; });
+                return { weeklyReport: groupDataByWeek(filtered, year, month), monthData: filtered };
+            }, [data, year, month]);
+            const monthlyTotalCount = monthData.length;
+            const monthlyTotalPrice = monthData.reduce((sum, item) => sum + calculateTotalCost(item), 0);
+            const weeklyAvgCount = weeklyReport.length > 0 ? (monthlyTotalCount / weeklyReport.length) : 0;
+            const weeklyAvgPrice = weeklyReport.length > 0 ? (monthlyTotalPrice / weeklyReport.length) : 0;
+            if (selectedWeek) {
+                const typeDataForWeek = processTypeData(selectedWeek.items);
+                const sortedTypesByCount = Object.entries(typeDataForWeek).sort(([, a], [, b]) => b.count - a.count);
+                const sortedTypesByPrice = Object.entries(typeDataForWeek).sort(([, a], [, b]) => b.totalCost - a.totalCost);
+                const countChartData = sortedTypesByCount.slice(0, 10).map(([type, stats]) => ({ label: type, value: stats.count, displayValue: `${stats.count} ครั้ง` }));
+                const priceChartData = sortedTypesByPrice.slice(0, 10).map(([type, stats]) => ({ label: type, value: stats.totalCost, displayValue: formatPrice(stats.totalCost) }));
+                return (<div><h3 className="font-semibold text-lg mb-2 text-slate-800">สรุปข้อมูลสัปดาห์ที่ {weeklyReport.findIndex(w => w.start.getTime() === selectedWeek.start.getTime()) + 1}<span className="text-sm font-normal text-gray-600 ml-2">({formatDate(selectedWeek.start.toISOString())} - {formatDate(selectedWeek.end.toISOString())})</span></h3><div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6"><BarChart data={countChartData} color="bg-blue-500" title="จำนวนรายการตามประเภท (Top 10)" /><BarChart data={priceChartData} color="bg-green-500" title="ราคารวมตามประเภท (Top 10)" /></div><h3 className="font-semibold text-lg mb-3 text-slate-800">รายละเอียดการซ่อม</h3>{isMobile ? (<div>{selectedWeek.items.map((item, idx) => <RepairCard key={item['ลำดับที่']} item={item} index={idx+1} />)}</div>) : (<div className="overflow-x-auto bg-white rounded-lg shadow-md p-4"><table className="w-full border-collapse"><thead><tr className="bg-slate-100"><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">ลำดับที่</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">เบอร์รถ</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">รายการซ่อม</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">ประเภท</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">วันที่แจ้งซ่อม</th><th className="border-b-2 border-gray-200 px-4 py-3 text-right text-sm font-semibold text-slate-800 uppercase tracking-wider">ต้นทุนรวม</th></tr></thead><tbody>{selectedWeek.items.map((item, idx) => (<tr key={item['ลำดับที่']} className="odd:bg-white even:bg-slate-50 hover:bg-blue-100/50 text-sm"><td className="border-b border-gray-200 px-4 py-3 text-slate-700">{idx + 1}</td><td className="border-b border-gray-200 px-4 py-3 text-slate-800 font-medium">{item['เบอร์รถ']}</td><td className="border-b border-gray-200 px-4 py-3 text-slate-700">{item['รายการซ่อม']}</td><td className="border-b border-gray-200 px-4 py-3 text-slate-700">{item['ประเภท']}</td><td className="border-b border-gray-200 px-4 py-3 text-slate-700">{formatDate(item['วันที่แจ้งซ่อม(APP)'])}</td><td className="border-b border-gray-200 px-4 py-3 text-right font-bold text-emerald-600">{formatPrice(calculateTotalCost(item))}</td></tr>))}</tbody></table></div>)}<button onClick={() => setSelectedWeek(null)} className="mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition">กลับไปหน้ารายสัปดาห์</button></div>)
+            }
+            return (<div><div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-2"><select value={year} onChange={e => setYear(Number(e.target.value))} className="px-3 py-2 border border-gray-300 rounded-md">{uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}</select><select value={month} onChange={e => setMonth(Number(e.target.value))} className="px-3 py-2 border border-gray-300 rounded-md">{Array.from({ length: 12 }).map((_, i) => <option key={i} value={i}>{getThaiMonthName(i)}</option>)}</select></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6"><SummaryCard title="จำนวนรายการทั้งหมด" value={monthlyTotalCount} color={{bg: 'bg-blue-100', text: 'text-blue-800'}} /><SummaryCard title="ราคารวมทั้งหมด" value={formatPrice(monthlyTotalPrice)} unit="บาท" color={{bg: 'bg-green-100', text: 'text-green-800'}} /><SummaryCard title="จำนวนเฉลี่ยต่อสัปดาห์" value={weeklyAvgCount.toFixed(1)} color={{bg: 'bg-purple-100', text: 'text-purple-800'}} /><SummaryCard title="ราคาเฉลี่ยต่อสัปดาห์" value={formatPrice(weeklyAvgPrice)} unit="บาท" color={{bg: 'bg-amber-100', text: 'text-amber-800'}} /></div>{weeklyReport.length === 0 ? <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลในเดือนที่เลือก</div> : (<div className="bg-white rounded-lg shadow-md p-3 sm:p-4"><h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-slate-800">รายงานรายสัปดาห์</h3>{isMobile ? (<div className="space-y-3">{weeklyReport.map((week, index) => { const totalCost = week.items.reduce((sum, item) => sum + calculateTotalCost(item), 0); return (<div key={index} onClick={() => setSelectedWeek(week)} className="mobile-card border border-gray-200 rounded-lg p-3 cursor-pointer hover:bg-gray-100/80 shadow-sm"><div className="flex justify-between items-center mb-1"><div className="font-semibold text-slate-800">สัปดาห์ที่ {index + 1}</div><div className="text-right font-bold text-blue-800">{formatPrice(totalCost)}</div></div><div className="text-xs text-slate-500 mb-2">{formatDate(week.start.toISOString())} - {formatDate(week.end.toISOString())}</div><div className="text-sm text-slate-700">จำนวน: <span className="font-semibold text-slate-900">{week.items.length} รายการ</span></div></div>)})}</div>) : (<div className="overflow-x-auto"><table className="w-full border-collapse"><thead><tr className="bg-slate-100"><th className="border-b-2 border-gray-200 px-4 py-3 text-center text-sm font-semibold text-slate-800 uppercase tracking-wider">สัปดาห์</th><th className="border-b-2 border-gray-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 uppercase tracking-wider">ช่วงวันที่</th><th className="border-b-2 border-gray-200 px-4 py-3 text-center text-sm font-semibold text-slate-800 uppercase tracking-wider">จำนวนรายการ</th><th className="border-b-2 border-gray-200 px-4 py-3 text-right text-sm font-semibold text-slate-800 uppercase tracking-wider">ราคารวม</th></tr></thead><tbody>{weeklyReport.map((week, index) => { const totalCost = week.items.reduce((sum, item) => sum + calculateTotalCost(item), 0); return (<tr key={index} onClick={() => setSelectedWeek(week)} className="odd:bg-white even:bg-slate-50 hover:bg-blue-100/50 cursor-pointer text-sm"><td className="border-b border-gray-200 px-4 py-3 text-center font-medium text-slate-700">{index + 1}</td><td className="border-b border-gray-200 px-4 py-3 text-slate-800">{formatDate(week.start.toISOString())} - {formatDate(week.end.toISOString())}</td><td className="border-b border-gray-200 px-4 py-3 text-center text-slate-800 font-bold">{week.items.length}</td><td className="border-b border-gray-200 px-4 py-3 text-right font-semibold text-blue-800">{formatPrice(totalCost)}</td></tr>)})}</tbody></table></div>)}</div>)}</div>);
+        };
+        const TypeTab = ({ data, isMobile }) => {
+            const [period, setPeriod] = useState('all');
+            const today = new Date();
+            const [year, setYear] = useState(today.getFullYear());
+            const [month, setMonth] = useState(today.getMonth());
+            const [expandedTypes, setExpandedTypes] = useState(new Set());
+            const { uniqueYears } = useMemo(() => { const years = new Set(); data.forEach(item => { const date = new Date(item['วันที่แจ้งซ่อม(APP)']); if (!isNaN(date.getTime())) years.add(date.getFullYear()); }); return { uniqueYears: Array.from(years).sort((a, b) => b - a) }; }, [data]);
+            
+            const typeData = useMemo(() => {
+                let filteredData = data;
+                if (period === 'year') { filteredData = data.filter(item => { const d = parseDate(item['วันที่แจ้งซ่อม(APP)']); return d && d.getFullYear() === year; }); } 
+                else if (period === 'month') { filteredData = data.filter(item => { const d = parseDate(item['วันที่แจ้งซ่อม(APP)']); return d && d.getFullYear() === year && d.getMonth() === month; }); }
+                return processTypeData(filteredData);
+            }, [data, period, year, month]);
+
+            const sortedTypes = useMemo(() => Object.entries(typeData).sort(([, a], [, b]) => b.count - a.count), [typeData]);
+            const totalItems = useMemo(() => sortedTypes.reduce((sum, [, stats]) => sum + stats.count, 0), [sortedTypes]);
+            const totalPrice = useMemo(() => sortedTypes.reduce((sum, [, stats]) => sum + stats.totalCost, 0), [sortedTypes]);
+            const countChartData = sortedTypes.slice(0, 10).map(([type, stats]) => ({ label: type, value: stats.count, displayValue: `${stats.count}` }));
+            const priceChartData = [...sortedTypes].sort(([,a], [,b]) => b.totalCost - a.totalCost).slice(0, 10).map(([type, stats]) => ({ label: type, value: stats.totalCost, displayValue: formatPrice(stats.totalCost) }));
+            const toggleType = (type) => setExpandedTypes(prev => { const newSet = new Set(prev); if (newSet.has(type)) newSet.delete(type); else newSet.add(type); return newSet; });
+
+            return (
+                <div>
+                    <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-2">
+                        <select value={period} onChange={e => setPeriod(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md"><option value="all">ทั้งหมด</option><option value="year">รายปี</option><option value="month">รายเดือน</option></select>
+                        {period === 'year' && (<select value={year} onChange={e => setYear(Number(e.target.value))} className="px-3 py-2 border border-gray-300 rounded-md">{uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}</select>)}
+                        {period === 'month' && (<><select value={year} onChange={e => setYear(Number(e.target.value))} className="px-3 py-2 border border-gray-300 rounded-md">{uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}</select><select value={month} onChange={e => setMonth(Number(e.target.value))} className="px-3 py-2 border border-gray-300 rounded-md">{Array.from({ length: 12 }).map((_, i) => <option key={i} value={i}>{getThaiMonthName(i)}</option>)}</select></>)}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                        <SummaryCard title="จำนวนประเภทการซ่อม" value={sortedTypes.length} color={{bg: 'bg-blue-100', text: 'text-blue-800'}} />
+                        <SummaryCard title="จำนวนรายการทั้งหมด" value={totalItems} color={{bg: 'bg-green-100', text: 'text-green-800'}} />
+                        <SummaryCard title="ราคารวมทั้งหมด" value={formatPrice(totalPrice)} unit="บาท" color={{bg: 'bg-purple-100', text: 'text-purple-800'}} />
+                        <SummaryCard title="ราคาเฉลี่ยต่อรายการ" value={formatPrice(totalItems > 0 ? totalPrice / totalItems : 0)} unit="บาท" color={{bg: 'bg-amber-100', text: 'text-amber-800'}} />
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                        <BarChart data={countChartData} color="bg-blue-500" title="จำนวนรายการตามประเภท (Top 10)" />
+                        <BarChart data={priceChartData} color="bg-green-500" title="ราคารวมตามประเภท (Top 10)" />
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-3 sm:p-4">
+                        <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-slate-800">รายละเอียดตามประเภทการซ่อม</h3>
+                        <div className="space-y-2">
+                             {sortedTypes.map(([type, stats]) => {
+                                const isExpanded = expandedTypes.has(type);
+                                const sortedVehicles = Object.entries(stats.vehicleDetails).sort(([,a],[,b]) => b.totalCost - a.totalCost);
+                                return (
+                                    <div key={type} className="border rounded-lg overflow-hidden bg-white">
+                                        <div onClick={() => toggleType(type)} className="p-3 cursor-pointer flex justify-between items-center hover:bg-slate-50">
+                                            <div className="flex items-center">
+                                                <span className={`transform transition-transform duration-200 mr-2 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}><Icons name="chevronDown" className="h-5 w-5 text-slate-500" /></span>
+                                                <h4 className="font-semibold text-blue-800">{type}</h4>
+                                            </div>
+                                            <div className="text-sm text-right">
+                                                <div><span className="font-semibold">{stats.count}</span> ครั้ง / <span className="font-semibold">{stats.regNumbers.size}</span> คัน</div>
+                                                <div className="font-bold text-emerald-600">{formatPrice(stats.totalCost)} บาท</div>
+                                            </div>
+                                        </div>
+                                        <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                                            <div className="p-4 bg-slate-50/70 border-t">
+                                                <h5 className="font-medium mb-2 text-slate-700">รายละเอียดรถในประเภทนี้:</h5>
+                                                <div className="overflow-x-auto border rounded-md">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-slate-200">
+                                                            <tr>
+                                                                <th className="px-3 py-2 text-left font-medium text-slate-600">ทะเบียนรถ</th>
+                                                                <th className="px-3 py-2 text-right font-medium text-slate-600">จำนวนครั้ง</th>
+                                                                <th className="px-3 py-2 text-right font-medium text-slate-600">ค่าใช้จ่าย (บาท)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {sortedVehicles.map(([vehicle, details]) => (
+                                                                <tr key={vehicle} className="border-t bg-white">
+                                                                    <td className="px-3 py-2 font-medium text-slate-700">{vehicle}</td>
+                                                                    <td className="px-3 py-2 text-right text-slate-600">{details.count}</td>
+                                                                    <td className="px-3 py-2 text-right text-slate-600">{formatPrice(details.totalCost)}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        const VehicleTab = ({ data, isMobile }) => {
+            const [period, setPeriod] = useState('all');
+            const [sortBy, setSortBy] = useState('count');
+            const today = new Date();
+            const [year, setYear] = useState(today.getFullYear());
+            const [month, setMonth] = useState(today.getMonth());
+            const [expandedVehicles, setExpandedVehicles] = useState(new Set());
+            const { uniqueYears } = useMemo(() => { const years = new Set(); data.forEach(item => { const date = new Date(item['วันที่แจ้งซ่อม(APP)']); if (!isNaN(date.getTime())) years.add(date.getFullYear()); }); return { uniqueYears: Array.from(years).sort((a, b) => b - a) }; }, [data]);
+            
+            const vehicleData = useMemo(() => {
+                let filteredData = data;
+                if (period === 'year') { filteredData = data.filter(item => { const d = parseDate(item['วันที่แจ้งซ่อม(APP)']); return d && d.getFullYear() === year; }); } 
+                else if (period === 'month') { filteredData = data.filter(item => { const d = parseDate(item['วันที่แจ้งซ่อม(APP)']); return d && d.getFullYear() === year && d.getMonth() === month; }); }
+                return processVehicleData(filteredData);
+            }, [data, period, year, month]);
+
+            const sortedVehicles = useMemo(() => Object.entries(vehicleData).sort(([, a], [, b]) => { if(sortBy === 'count') return b.count - a.count; return b.totalCost - a.totalCost; }), [vehicleData, sortBy]);
+            const countChartData = [...sortedVehicles].sort(([,a],[,b])=>b.count - a.count).slice(0, 10).map(([vehicle, stats]) => ({ label: vehicle, value: stats.count, displayValue: `${stats.count} ครั้ง` }));
+            const priceChartData = [...sortedVehicles].sort(([,a],[,b])=>b.totalCost - a.totalCost).slice(0, 10).map(([vehicle, stats]) => ({ label: vehicle, value: stats.totalCost, displayValue: formatPrice(stats.totalCost) }));
+            const toggleVehicle = (vehicle) => setExpandedVehicles(prev => { const newSet = new Set(prev); if (newSet.has(vehicle)) newSet.delete(vehicle); else newSet.add(vehicle); return newSet; });
+
+            const SparePartsList = ({ item }) => {
+                const parts = item['รายการอะไหล่ที่ต้องเปลี่ยน']?.split(/[+,]/).map(p => p.trim()).filter(Boolean) || [];
+                const prices = String(item['ราคาอะไหล่'] || '').split(/[,;|+]/).map(p => p.trim()).filter(Boolean);
+
+                if (parts.length === 0 && prices.length === 0) {
+                    return <span className="text-slate-500">-</span>;
+                }
+
+                return (
+                    <div className="space-y-1 text-xs">
+                        {parts.map((part, index) => (
+                            <div key={index} className="flex justify-between items-center">
+                                <span className="text-slate-700">{part}</span>
+                                <span className="font-medium text-slate-800">{formatPrice(prices[index] || 0)}</span>
+                            </div>
+                        ))}
+                    </div>
+                );
+            };
+
+            return (
+                <div>
+                    <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-2">
+                        <select value={period} onChange={e => setPeriod(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md"><option value="all">ทั้งหมด</option><option value="year">รายปี</option><option value="month">รายเดือน</option></select>
+                        {period !== 'all' && (<><select value={year} onChange={e => setYear(Number(e.target.value))} className="px-3 py-2 border border-gray-300 rounded-md">{uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}</select>{period === 'month' && (<select value={month} onChange={e => setMonth(Number(e.target.value))} className="px-3 py-2 border border-gray-300 rounded-md">{Array.from({ length: 12 }).map((_, i) => <option key={i} value={i}>{getThaiMonthName(i)}</option>)}</select>)}</>)}
+                        <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md"><option value="count">เรียงตามจำนวนครั้ง</option><option value="price">เรียงตามราคารวม</option></select>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                        <BarChart data={countChartData} color="bg-blue-500" title="จำนวนครั้งการซ่อม (Top 10)" />
+                        <BarChart data={priceChartData} color="bg-green-500" title="ค่าใช้จ่ายรวม (Top 10)" />
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-3 sm:p-4">
+                        <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-slate-800">รายละเอียดสถิติรถ</h3>
+                        <div className="space-y-2">
+                            {sortedVehicles.map(([vehicle, stats]) => {
+                                const isExpanded = expandedVehicles.has(vehicle);
+                                return (
+                                    <div key={vehicle} className="border rounded-lg overflow-hidden bg-white">
+                                        <div onClick={() => toggleVehicle(vehicle)} className="p-3 cursor-pointer flex justify-between items-center hover:bg-slate-50">
+                                            <div>
+                                                <h4 className="font-semibold text-blue-800">{vehicle}</h4>
+                                                <div className="text-xs text-slate-500">ประเภทที่ซ่อมบ่อย: {stats.mostCommonType}</div>
+                                            </div>
+                                            <div className="text-sm text-right">
+                                                <div><span className="font-semibold">{stats.count}</span> ครั้ง</div>
+                                                <div className="font-bold text-emerald-600">{formatPrice(stats.totalCost)} บาท</div>
+                                            </div>
+                                        </div>
+                                        <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                                            <div className="p-4 bg-slate-50/70 border-t">
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-slate-200">
+                                                            <tr>
+                                                                <th className="px-3 py-2 text-left font-medium text-slate-600">วันที่</th>
+                                                                <th className="px-3 py-2 text-left font-medium text-slate-600">รายการซ่อม</th>
+                                                                <th className="px-3 py-2 text-left font-medium text-slate-600">รายการอะไหล่</th>
+                                                                <th className="px-3 py-2 text-right font-medium text-slate-600">ค่าใช้จ่ายรวม</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {stats.items.map((item, index) => (
+                                                                <tr key={index} className="border-t bg-white">
+                                                                    <td className="px-3 py-2 align-top text-slate-600 whitespace-nowrap">{formatDate(item['วันที่แจ้งซ่อม(APP)'])}</td>
+                                                                    <td className="px-3 py-2 align-top">
+                                                                        <div className="font-medium text-slate-800">{item['รายการซ่อม']}</div>
+                                                                        <div className="text-xs text-blue-600">{item['ประเภท']}</div>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 align-top w-1/3">
+                                                                        <SparePartsList item={item} />
+                                                                    </td>
+                                                                    <td className="px-3 py-2 align-top text-right font-semibold text-emerald-700">{formatPrice(calculateTotalCost(item))}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ##################################################################
+        // ### REPAIR APP MAIN COMPONENT (คอมโพเนนต์หลักของแอปแจ้งซ่อม) ###
+        // ##################################################################
+        const RepairApp = ({ data, isMobile }) => {
+            const [activeTab, setActiveTab] = useState('all');
+            const tabConfig = [ { id: 'all', label: 'ข้อมูลทั้งหมด' }, { id: 'weekly', label: 'รายสัปดาห์' }, { id: 'type', label: 'สรุปประเภท' }, { id: 'vehicle', label: 'สถิติรถ' }];
+            const renderContent = () => {
+                if (!data || data.length === 0) return <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลการแจ้งซ่อม</div>;
+                switch (activeTab) {
+                    case 'all': return <AllDataTab data={data} isMobile={isMobile} />;
+                    case 'weekly': return <WeeklyTab data={data} isMobile={isMobile} />;
+                    case 'type': return <TypeTab data={data} isMobile={isMobile} />;
+                    case 'vehicle': return <VehicleTab data={data} isMobile={isMobile} />;
+                    default: return null;
+                }
+            };
+            return (
+                <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6">
+                    <div className="flex border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
+                        {tabConfig.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`py-2 px-3 sm:px-4 font-medium whitespace-nowrap text-sm sm:text-base border-b-2 ${activeTab === tab.id ? 'tab-active' : 'tab-inactive'}`}>
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                    {renderContent()}
+                </div>
+            );
+        };
+        
+        // ##################################################################
+        // ### FUEL APP COMPONENTS (START) ###
+        // ##################################################################
+        const FuelCharts = ({ supplyData }) => {
+            const { dieselPriceChart, dieselLiterChart, benzenePriceChart, benzeneLiterChart } = useMemo(() => {
+                if (!supplyData || supplyData.length === 0) {
+                    return { dieselPriceChart: [], dieselLiterChart: [], benzenePriceChart: [], benzeneLiterChart: [] };
+                }
+
+                const processFuelData = (data, valueField, unit) => {
+                    const vehicleSummary = data.reduce((acc, item) => {
+                        const vehicle = item['เบอร์รถ'] || 'ไม่ระบุ';
+                        const value = parseFloat(item[valueField]) || 0;
+                        if (!acc[vehicle]) acc[vehicle] = 0;
+                        acc[vehicle] += value;
+                        return acc;
+                    }, {});
+
+                    return Object.entries(vehicleSummary)
+                        .map(([label, value]) => ({ label, value, displayValue: `${formatNumber(value)} ${unit}` }))
+                        .sort((a, b) => b.value - a.value)
+                        .slice(0, 10);
+                };
+                
+                const dieselData = supplyData.filter(item => {
+                    const fuelType = item['ชนิดน้ำมัน'] ? item['ชนิดน้ำมัน'].toLowerCase() : '';
+                    return fuelType.includes('ดีเซล');
+                });
+                const benzeneData = supplyData.filter(item => {
+                    const fuelType = item['ชนิดน้ำมัน'] ? item['ชนิดน้ำมัน'].toLowerCase() : '';
+                    return fuelType.includes('เบนซิน') || fuelType.includes('แก๊สโซฮอล์') || fuelType.includes('91') || fuelType.includes('95');
+                });
+
+                const dieselPriceChart = processFuelData(dieselData, 'ราคาน้ำมัน', 'บาท');
+                const dieselLiterChart = processFuelData(dieselData, 'จ่ายออก /ลิตร', 'ลิตร');
+                const benzenePriceChart = processFuelData(benzeneData, 'ราคาน้ำมัน', 'บาท');
+                const benzeneLiterChart = processFuelData(benzeneData, 'จ่ายออก /ลิตร', 'ลิตร');
+
+                return { dieselPriceChart, dieselLiterChart, benzenePriceChart, benzeneLiterChart };
+
+            }, [supplyData]);
+
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <BarChart data={dieselPriceChart} color="bg-sky-500" title="10 อันดับรถที่เบิกดีเซลสูงสุด (บาท)" />
+                    <BarChart data={dieselLiterChart} color="bg-sky-600" title="10 อันดับรถที่เบิกดีเซลสูงสุด (ลิตร)" />
+                    <BarChart data={benzenePriceChart} color="bg-amber-500" title="10 อันดับรถที่เบิกเบนซินสูงสุด (บาท)" />
+                    <BarChart data={benzeneLiterChart} color="bg-amber-600" title="10 อันดับรถที่เบิกเบนซินสูงสุด (ลิตร)" />
+                </div>
+            );
+        };
+
+        const FuelSupplyTab = ({ data }) => {
+            const [expandedMonths, setExpandedMonths] = useState(new Set());
+            const [expandedVehicles, setExpandedVehicles] = useState(new Set());
+
+            const groupedByMonth = useMemo(() => {
+                if (!data) return [];
+                const grouped = data.reduce((acc, item) => {
+                    const date = parseDate(item['วันที่']);
+                    if (!date) return acc;
+                    const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+                    if (!acc[monthKey]) {
+                        acc[monthKey] = { year: date.getFullYear(), month: date.getMonth(), items: [], totalLiters: 0, totalPrice: 0 };
+                    }
+                    acc[monthKey].items.push(item);
+                    acc[monthKey].totalLiters += Number(item['จ่ายออก /ลิตร']) || 0;
+                    acc[monthKey].totalPrice += Number(item['ราคาน้ำมัน']) || 0;
+                    return acc;
+                }, {});
+                return Object.entries(grouped).sort(([keyA], [keyB]) => new Date(keyB.split('-')[0], keyB.split('-')[1]) - new Date(keyA.split('-')[0], keyA.split('-')[1]));
+            }, [data]);
+            
+            const groupVehicles = (items) => {
+                 if (!items) return [];
+                 const grouped = items.reduce((acc, item) => {
+                    const vehicle = item['เบอร์รถ'] || 'ไม่ระบุ';
+                    if (!acc[vehicle]) {
+                        acc[vehicle] = { items: [], totalLiters: 0, totalPrice: 0 };
+                    }
+                    acc[vehicle].items.push(item);
+                    acc[vehicle].totalLiters += Number(item['จ่ายออก /ลิตร']) || 0;
+                    acc[vehicle].totalPrice += Number(item['ราคาน้ำมัน']) || 0;
+                    return acc;
+                }, {});
+                return Object.entries(grouped).sort(([, a], [, b]) => b.totalPrice - a.totalPrice);
+            };
+
+            const toggleMonth = (monthKey) => {
+                setExpandedMonths(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(monthKey)) newSet.delete(monthKey);
+                    else newSet.add(monthKey);
+                    return newSet;
+                });
+            };
+
+            const toggleVehicle = (vehicleKey) => {
+                setExpandedVehicles(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(vehicleKey)) newSet.delete(vehicleKey);
+                    else newSet.add(vehicleKey);
+                    return newSet;
+                });
+            };
+
+            return (
+                <div className="space-y-2">
+                    {groupedByMonth.length === 0 && <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลในเดือนที่เลือก</div>}
+                    {groupedByMonth.map(([monthKey, monthData]) => {
+                        const isMonthExpanded = expandedMonths.has(monthKey);
+                        const vehiclesInMonth = groupVehicles(monthData.items);
+                        return (
+                             <div key={monthKey} className="border rounded-lg overflow-hidden bg-white">
+                                <div onClick={() => toggleMonth(monthKey)} className="p-3 cursor-pointer flex justify-between items-center hover:bg-slate-50 bg-blue-50">
+                                    <div className="flex items-center">
+                                        <span className={`transform transition-transform duration-200 mr-2 ${isMonthExpanded ? 'rotate-0' : '-rotate-90'}`}><Icons name="chevronDown" className="h-5 w-5 text-blue-600" /></span>
+                                        <h4 className="font-semibold text-blue-800">{getThaiMonthName(monthData.month)} {monthData.year}</h4>
+                                    </div>
+                                     <div className="text-sm text-right">
+                                        <div className="font-semibold text-red-600">{formatPrice(monthData.totalPrice)} บาท</div>
+                                        <div className="text-xs text-slate-500">{formatNumber(monthData.totalLiters)} ลิตร</div>
+                                    </div>
+                                </div>
+                                <div className={`transition-all duration-300 ease-in-out ${isMonthExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                                    <div className="p-4 bg-blue-50/30 border-t space-y-2">
+                                        {vehiclesInMonth.map(([vehicle, stats]) => {
+                                            const vehicleKey = `${monthKey}-${vehicle}`;
+                                            const isVehicleExpanded = expandedVehicles.has(vehicleKey);
+                                            return (
+                                                <div key={vehicleKey} className="border rounded-lg overflow-hidden bg-white">
+                                                    <div onClick={() => toggleVehicle(vehicleKey)} className="p-3 cursor-pointer flex justify-between items-center hover:bg-slate-50">
+                                                        <div className="flex items-center">
+                                                            <span className={`transform transition-transform duration-200 mr-2 ${isVehicleExpanded ? 'rotate-0' : '-rotate-90'}`}><Icons name="chevronDown" className="h-5 w-5 text-slate-500" /></span>
+                                                            <h5 className="font-medium text-slate-700">{vehicle}</h5>
+                                                        </div>
+                                                        <div className="text-sm text-right">
+                                                            <div className="font-semibold text-red-600">{formatPrice(stats.totalPrice)} บาท</div>
+                                                            <div className="text-xs text-slate-500">{formatNumber(stats.totalLiters)} ลิตร</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className={`transition-all duration-300 ease-in-out ${isVehicleExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                                                        <div className="p-4 bg-slate-50/70 border-t">
+                                                            <table className="w-full text-sm">
+                                                                <thead className="bg-slate-200">
+                                                                    <tr>
+                                                                        <th className="px-3 py-2 text-left font-medium text-slate-600">วันที่</th>
+                                                                        <th className="px-3 py-2 text-left font-medium text-slate-600">ชนิดน้ำมัน</th>
+                                                                        <th className="px-3 py-2 text-right font-medium text-slate-600">จ่ายออก (ลิตร)</th>
+                                                                        <th className="px-3 py-2 text-right font-medium text-slate-600">ราคาน้ำมัน (บาท)</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {stats.items.map((item, index) => (
+                                                                        <tr key={index} className="border-t">
+                                                                            <td className="px-3 py-2 text-slate-600">{formatSimpleDate(item['วันที่'])}</td>
+                                                                            <td className="px-3 py-2 text-slate-700">{item['ชนิดน้ำมัน']}</td>
+                                                                            <td className="px-3 py-2 text-right text-slate-600">{formatNumber(item['จ่ายออก /ลิตร'])}</td>
+                                                                            <td className="px-3 py-2 text-right text-red-600">{formatPrice(item['ราคาน้ำมัน'])}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        const FuelReceivingTab = ({ data }) => {
+            const [expandedMonths, setExpandedMonths] = useState(new Set());
+
+            const groupedByMonth = useMemo(() => {
+                if (!data) return [];
+                const grouped = data.reduce((acc, item) => {
+                    const date = parseDate(item['วันที่']);
+                    if (!date) return acc;
+                    const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+                    if (!acc[monthKey]) {
+                        acc[monthKey] = { year: date.getFullYear(), month: date.getMonth(), items: [], totalLiters: 0, totalPrice: 0 };
+                    }
+                    acc[monthKey].items.push(item);
+                    acc[monthKey].totalLiters += Number(item['รับเข้า']) || 0;
+                    acc[monthKey].totalPrice += Number(item['ราคาน้ำมัน']) || 0;
+                    return acc;
+                }, {});
+
+                return Object.entries(grouped).sort(([keyA], [keyB]) => new Date(keyB.split('-')[0], keyB.split('-')[1]) - new Date(keyA.split('-')[0], keyA.split('-')[1]));
+            }, [data]);
+
+            const toggleMonth = (monthKey) => {
+                setExpandedMonths(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(monthKey)) newSet.delete(monthKey);
+                    else newSet.add(monthKey);
+                    return newSet;
+                });
+            };
+
+            return (
+                <div className="space-y-2">
+                    {groupedByMonth.length === 0 && <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลในเดือนที่เลือก</div>}
+                    {groupedByMonth.map(([monthKey, monthData]) => {
+                        const isMonthExpanded = expandedMonths.has(monthKey);
+                        return (
+                             <div key={monthKey} className="border rounded-lg overflow-hidden bg-white">
+                                <div onClick={() => toggleMonth(monthKey)} className="p-3 cursor-pointer flex justify-between items-center hover:bg-slate-50 bg-blue-50">
+                                    <div className="flex items-center">
+                                        <span className={`transform transition-transform duration-200 mr-2 ${isMonthExpanded ? 'rotate-0' : '-rotate-90'}`}><Icons name="chevronDown" className="h-5 w-5 text-blue-600" /></span>
+                                        <h4 className="font-semibold text-blue-800">{getThaiMonthName(monthData.month)} {monthData.year}</h4>
+                                    </div>
+                                    <div className="text-sm text-right">
+                                        <div className="font-semibold text-green-600">{formatPrice(monthData.totalPrice)} บาท</div>
+                                        <div className="text-xs text-slate-500">{formatNumber(monthData.totalLiters)} ลิตร</div>
+                                    </div>
+                                </div>
+                                <div className={`transition-all duration-300 ease-in-out ${isMonthExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                                    <div className="p-4 bg-blue-50/30 border-t">
+                                        <table className="w-full text-sm bg-white rounded-lg overflow-hidden">
+                                            <thead className="bg-slate-200">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left font-medium text-slate-600">วันที่</th>
+                                                    <th className="px-3 py-2 text-left font-medium text-slate-600">ชนิดน้ำมัน</th>
+                                                    <th className="px-3 py-2 text-right font-medium text-slate-600">รับเข้า (ลิตร)</th>
+                                                    <th className="px-3 py-2 text-right font-medium text-slate-600">ราคาน้ำมัน (บาท)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {monthData.items.map((item, index) => (
+                                                    <tr key={index} className="border-t">
+                                                        <td className="px-3 py-2 text-slate-600">{formatSimpleDate(item['วันที่'])}</td>
+                                                        <td className="px-3 py-2 text-slate-700">{item['ชนิดน้ำมัน']}</td>
+                                                        <td className="px-3 py-2 text-right text-green-600">{formatNumber(item['รับเข้า'])}</td>
+                                                        <td className="px-3 py-2 text-right text-green-600">{formatPrice(item['ราคาน้ำมัน'])}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )
+        };
+
+        const FuelApp = ({ data }) => {
+            const [activeTab, setActiveTab] = useState('supply');
+            const [selectedYear, setSelectedYear] = useState('all');
+            const [selectedMonth, setSelectedMonth] = useState('all');
+
+            const { uniqueYears } = useMemo(() => {
+                const allFuelData = [...(data.receiving || []), ...(data.supply || [])];
+                const years = new Set(allFuelData.map(item => parseDate(item['วันที่'])?.getFullYear()).filter(Boolean));
+                return { uniqueYears: Array.from(years).sort((a, b) => b - a) };
+            }, [data]);
+
+            const filteredData = useMemo(() => {
+                const filterByDate = (d) => {
+                    if (!d) return [];
+                    // Exclude "ยอดยกมา" from all dynamic calculations
+                    const dataWithoutCarryOver = d.filter(item => item['เลขที่ใบเบิก SAP'] !== 'ยอดยกมา');
+
+                    if (selectedYear === 'all') return dataWithoutCarryOver;
+                    
+                    return dataWithoutCarryOver.filter(item => {
+                        const date = parseDate(item['วันที่']);
+                        if (!date) return false;
+                        const yearMatch = date.getFullYear() === parseInt(selectedYear, 10);
+                        const monthMatch = selectedMonth === 'all' || date.getMonth() === parseInt(selectedMonth, 10);
+                        return yearMatch && monthMatch;
+                    });
+                };
+                return {
+                    receiving: filterByDate(data.receiving),
+                    supply: filterByDate(data.supply)
+                };
+            }, [data, selectedYear, selectedMonth]);
+
+            const { summary } = useMemo(() => {
+                const receiving = filteredData.receiving;
+                const supply = filteredData.supply;
+
+                const aggregateFuelData = (data, valueField, isLiter = false) => {
+                    const summary = { 'ดีเซล': 0, 'เบนซิน': 0 };
+                    (data || []).forEach(item => {
+                        const type = item['ชนิดน้ำมัน'] || 'ไม่ระบุ';
+                        const value = Number(item[valueField]) || 0;
+                        const fuelTypeStr = type.toLowerCase();
+                        if (fuelTypeStr.includes('ดีเซล')) {
+                            summary['ดีเซล'] += value;
+                        } else if (fuelTypeStr.includes('เบนซิน') || fuelTypeStr.includes('แก๊สโซฮอล์') || fuelTypeStr.includes('91') || fuelTypeStr.includes('95')) {
+                            summary['เบนซิน'] += value;
+                        }
+                    });
+                    return summary;
+                };
+
+                const receivedBahtByType = aggregateFuelData(receiving, 'ราคาน้ำมัน');
+                const receivedLitersByType = aggregateFuelData(receiving, 'รับเข้า', true);
+                const suppliedBahtByType = aggregateFuelData(supply, 'ราคาน้ำมัน');
+                const suppliedLitersByType = aggregateFuelData(supply, 'จ่ายออก /ลิตร', true);
+
+                // Balance and Average Price calculations should always use the full dataset, excluding "ยอดยกมา"
+                const fullReceivingData = (data.receiving || []).filter(item => item['เลขที่ใบเบิก SAP'] !== 'ยอดยกมา');
+                const fullSupplyData = (data.supply || []).filter(item => item['เลขที่ใบเบิก SAP'] !== 'ยอดยกมา');
+
+                const totalReceivedLiters = aggregateFuelData(fullReceivingData, 'รับเข้า', true);
+                const totalSuppliedLiters = aggregateFuelData(fullSupplyData, 'จ่ายออก /ลิตร', true);
+                const fuelBalanceByType = {
+                    'ดีเซล': (totalReceivedLiters['ดีเซล'] || 0) - (totalSuppliedLiters['ดีเซล'] || 0),
+                    'เบนซิน': (totalReceivedLiters['เบนซิน'] || 0) - (totalSuppliedLiters['เบนซิน'] || 0),
+                };
+
+                const totalReceivedValue = aggregateFuelData(fullReceivingData, 'ราคาน้ำมัน');
+                const avgPriceByType = {
+                    'ดีเซล': totalReceivedLiters['ดีเซล'] > 0 ? totalReceivedValue['ดีเซล'] / totalReceivedLiters['ดีเซล'] : 0,
+                    'เบนซิน': totalReceivedLiters['เบนซิน'] > 0 ? totalReceivedValue['เบนซิน'] / totalReceivedLiters['เบนซิน'] : 0,
+                };
+                const fuelBalanceValueByType = {
+                    'ดีเซล': fuelBalanceByType['ดีเซล'] * avgPriceByType['ดีเซล'],
+                    'เบนซิน': fuelBalanceByType['เบนซิน'] * avgPriceByType['เบนซิน'],
+                };
+
+                return { 
+                    summary: {
+                        receivedBahtByType,
+                        suppliedBahtByType,
+                        receivedLitersByType,
+                        suppliedLitersByType,
+                        fuelBalanceByType,
+                        fuelBalanceValueByType
+                    }
+                };
+            }, [filteredData, data]); 
+
+            return (
+                 <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6">
+                    <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-2">
+                        <select value={selectedYear} onChange={e => { setSelectedYear(e.target.value); setSelectedMonth('all'); }} className="px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="all">ทุกปี</option>
+                            {uniqueYears.map(y => <option key={y} value={y}>{y + 543}</option>)}
+                        </select>
+                        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" disabled={selectedYear === 'all'}>
+                            <option value="all">ทุกเดือน</option>
+                            {Array.from({ length: 12 }).map((_, i) => <option key={i} value={i}>{getThaiMonthName(i)}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div>
+                             <h3 className="text-lg font-semibold text-slate-700 mb-3">สรุปยอดรับเข้า</h3>
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {summary.receivedLitersByType['ดีเซล'] > 0 && <SummaryCard key="r-liter-diesel" title="รับเข้า ดีเซล (ลิตร)" value={formatNumber(summary.receivedLitersByType['ดีเซล'])} unit="ลิตร" icon={<Icons name="up"/>} color={{bg:'bg-green-100', icon:'text-green-600', border:'border-green-500'}}/>}
+                                {summary.receivedLitersByType['เบนซิน'] > 0 && <SummaryCard key="r-liter-benzene" title="รับเข้า เบนซิน (ลิตร)" value={formatNumber(summary.receivedLitersByType['เบนซิน'])} unit="ลิตร" icon={<Icons name="up"/>} color={{bg:'bg-green-100', icon:'text-green-600', border:'border-green-500'}}/>}
+                                {summary.receivedBahtByType['ดีเซล'] > 0 && <SummaryCard key="r-baht-diesel" title="รับเข้า ดีเซล (บาท)" value={formatPrice(summary.receivedBahtByType['ดีเซล'])} unit="บาท" icon={<Icons name="up"/>} color={{bg:'bg-green-100', icon:'text-green-600', border:'border-green-500'}}/>}
+                                {summary.receivedBahtByType['เบนซิน'] > 0 && <SummaryCard key="r-baht-benzene" title="รับเข้า เบนซิน (บาท)" value={formatPrice(summary.receivedBahtByType['เบนซิน'])} unit="บาท" icon={<Icons name="up"/>} color={{bg:'bg-green-100', icon:'text-green-600', border:'border-green-500'}}/>}
+                             </div>
+                        </div>
+                        <div>
+                             <h3 className="text-lg font-semibold text-slate-700 mb-3">สรุปยอดจ่ายออก</h3>
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {summary.suppliedLitersByType['ดีเซล'] > 0 && <SummaryCard key="s-liter-diesel" title="จ่ายออก ดีเซล (ลิตร)" value={formatNumber(summary.suppliedLitersByType['ดีเซล'])} unit="ลิตร" icon={<Icons name="down"/>} color={{bg:'bg-red-100', icon:'text-red-600', border:'border-red-500'}}/>}
+                                {summary.suppliedLitersByType['เบนซิน'] > 0 && <SummaryCard key="s-liter-benzene" title="จ่ายออก เบนซิน (ลิตร)" value={formatNumber(summary.suppliedLitersByType['เบนซิน'])} unit="ลิตร" icon={<Icons name="down"/>} color={{bg:'bg-red-100', icon:'text-red-600', border:'border-red-500'}}/>}
+                                {summary.suppliedBahtByType['ดีเซล'] > 0 && <SummaryCard key="s-baht-diesel" title="จ่ายออก ดีเซล (บาท)" value={formatPrice(summary.suppliedBahtByType['ดีเซล'])} unit="บาท" icon={<Icons name="down"/>} color={{bg:'bg-red-100', icon:'text-red-600', border:'border-red-500'}}/>}
+                                {summary.suppliedBahtByType['เบนซิน'] > 0 && <SummaryCard key="s-baht-benzene" title="จ่ายออก เบนซิน (บาท)" value={formatPrice(summary.suppliedBahtByType['เบนซิน'])} unit="บาท" icon={<Icons name="down"/>} color={{bg:'bg-red-100', icon:'text-red-600', border:'border-red-500'}}/>}
+                             </div>
+                        </div>
+                        <div>
+                             <h3 className="text-lg font-semibold text-slate-700 mb-3">สรุปยอดคงเหลือ</h3>
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {summary.fuelBalanceByType['ดีเซล'] !== undefined && <SummaryCard key="b-liter-diesel" title="คงเหลือ ดีเซล (ลิตร)" value={formatNumber(summary.fuelBalanceByType['ดีเซล'])} unit="ลิตร" icon={<Icons name="balance"/>} color={{bg:'bg-blue-100', icon:'text-blue-600', border:'border-blue-500'}}/>}
+                                {summary.fuelBalanceByType['เบนซิน'] !== undefined && <SummaryCard key="b-liter-benzene" title="คงเหลือ เบนซิน (ลิตร)" value={formatNumber(summary.fuelBalanceByType['เบนซิน'])} unit="ลิตร" icon={<Icons name="balance"/>} color={{bg:'bg-blue-100', icon:'text-blue-600', border:'border-blue-500'}}/>}
+                                {summary.fuelBalanceValueByType['ดีเซล'] !== undefined && <SummaryCard key="b-baht-diesel" title="มูลค่าคงเหลือ ดีเซล (บาท)" value={formatPrice(summary.fuelBalanceValueByType['ดีเซล'])} unit="บาท" icon={<Icons name="balance"/>} color={{bg:'bg-blue-100', icon:'text-blue-600', border:'border-blue-500'}}/>}
+                                {summary.fuelBalanceValueByType['เบนซิน'] !== undefined && <SummaryCard key="b-baht-benzene" title="มูลค่าคงเหลือ เบนซิน (บาท)" value={formatPrice(summary.fuelBalanceValueByType['เบนซิน'])} unit="บาท" icon={<Icons name="balance"/>} color={{bg:'bg-blue-100', icon:'text-blue-600', border:'border-blue-500'}}/>}
+                             </div>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-8">
+                        <FuelCharts supplyData={filteredData.supply} />
+                    </div>
+
+                    <div className="flex border-b border-gray-200 mt-8 mb-4 sm:mb-6 overflow-x-auto">
+                        <button onClick={() => setActiveTab('supply')} className={`py-2 px-3 sm:px-4 font-medium whitespace-nowrap text-sm sm:text-base border-b-2 ${activeTab === 'supply' ? 'tab-active' : 'tab-inactive'}`}>
+                            ข้อมูลการจ่ายน้ำมัน
+                        </button>
+                        <button onClick={() => setActiveTab('receiving')} className={`py-2 px-3 sm:px-4 font-medium whitespace-nowrap text-sm sm:text-base border-b-2 ${activeTab === 'receiving' ? 'tab-active' : 'tab-inactive'}`}>
+                           ข้อมูลการรับน้ำมัน
+                        </button>
+                    </div>
+                    
+                    {activeTab === 'supply' && <FuelSupplyTab data={filteredData.supply} />}
+                    {activeTab === 'receiving' && <FuelReceivingTab data={filteredData.receiving} />}
+                </div>
+            );
+        };
+        // ### FUEL APP COMPONENTS (END) ###
+        
+        // ##################################################################
+        // ### EV CHARGING APP COMPONENTS (START) ###
+        // ##################################################################
+
+        const EVChargingCharts = ({ chartData }) => {
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <BarChart data={chartData.vehicleCost} color="bg-amber-500" title="10 อันดับรถที่ค่าไฟฟ้าสูงสุด" />
+                    <BarChart data={chartData.chargerKwh} color="bg-sky-500" title="10 อันดับตู้ชาร์จที่ใช้งาน (kWh) สูงสุด" />
+                </div>
+            );
+        };
+
+        const VehicleChargeDetailsModal = ({ vehiclePlate, chargeData, onClose }) => {
+            const vehicleHistory = chargeData.filter(item => item.licensePlate === vehiclePlate);
+            return (
+                <div className="modal-backdrop">
+                    <div className="modal-content">
+                        <h3 className="text-lg font-bold mb-4">ประวัติการชาร์จ: {vehiclePlate}</h3>
+                        <div className="overflow-y-auto max-h-[60vh]">
+                             <table className="w-full text-sm">
+                                <thead className="bg-slate-100 sticky top-0">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left font-medium text-slate-600">วันที่</th>
+                                        <th className="px-3 py-2 text-left font-medium text-slate-600">ตู้ชาร์จ</th>
+                                        <th className="px-3 py-2 text-right font-medium text-slate-600">kWh</th>
+                                        <th className="px-3 py-2 text-right font-medium text-slate-600">ค่าไฟ (บาท)</th>
+                                        <th className="px-3 py-2 text-left font-medium text-slate-600">ระยะเวลา</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {vehicleHistory.map((item, index) => (
+                                        <tr key={item.id || index} className="border-t">
+                                            <td className="px-3 py-2 text-slate-600">{formatDate(item.date)}</td>
+                                            <td className="px-3 py-2 text-slate-700">{item.chargerName}</td>
+                                            <td className="px-3 py-2 text-right text-slate-600">{formatNumber(item.units)}</td>
+                                            <td className="px-3 py-2 text-right text-slate-600">{formatPrice(item.electricityCost)}</td>
+                                            <td className="px-3 py-2 text-slate-600">{item.duration}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <button onClick={onClose} className="mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition">ปิด</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const VehicleCostSummaryTable = ({ summaryData, onVehicleSelect }) => {
+            if (!summaryData || summaryData.length === 0) return null;
+
+            return (
+                <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-3">สรุปค่าไฟฟ้าตามทะเบียนรถ</h3>
+                    <div className="overflow-x-auto border rounded-lg bg-white shadow-sm">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-100">
+                                <tr>
+                                    <th className="px-4 py-2 text-left font-medium text-slate-600">ทะเบียนรถ</th>
+                                    <th className="px-4 py-2 text-right font-medium text-slate-600">จำนวนครั้งที่ชาร์จ</th>
+                                    <th className="px-4 py-2 text-right font-medium text-slate-600">ค่าไฟฟ้าทั้งหมด (บาท)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {summaryData.map((item) => (
+                                    <tr key={item.licensePlate} className="border-t hover:bg-slate-100 cursor-pointer" onClick={() => onVehicleSelect(item.licensePlate)}>
+                                        <td className="px-4 py-2 font-medium text-slate-700">{item.licensePlate}</td>
+                                        <td className="px-4 py-2 text-right text-slate-600">{item.count}</td>
+                                        <td className="px-4 py-2 text-right font-semibold text-sky-700">{formatPrice(item.totalCost)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const WeeklyAccordion = ({ weekData, isExpanded, onToggle, weekNumber }) => {
+            const { chargerSummary, vehicleSummary, items, startDate, endDate } = weekData;
+
+            const groupedWeeklyItems = useMemo(() => {
+                if (!items) return {};
+                return items.reduce((acc, item) => {
+                    const plate = item.licensePlate || 'ไม่ระบุ';
+                    if (!acc[plate]) {
+                        acc[plate] = { items: [], totalKwh: 0, totalCost: 0, durations: [] };
+                    }
+                    acc[plate].items.push(item);
+                    acc[plate].totalKwh += parseFloat(item.units) || 0;
+                    acc[plate].totalCost += parseFloat(item.electricityCost) || 0;
+                    if(item.duration) acc[plate].durations.push(item.duration);
+                    return acc;
+                }, {});
+            }, [items]);
+
+            return (
+                <div className="mb-2 border border-slate-200 rounded-lg overflow-hidden">
+                    <div onClick={onToggle} className="bg-slate-50 px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors duration-200">
+                        <div className="flex items-center">
+                             <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}>
+                                <Icons name="chevronDown" className="h-5 w-5 mr-2 text-slate-500" />
+                            </span>
+                            <h4 className="font-semibold text-slate-700">
+                                สัปดาห์ที่ {weekNumber}
+                                <span className="font-normal text-slate-500 text-sm ml-2">
+                                    ({formatDate(startDate)} - {formatDate(endDate)})
+                                </span>
+                            </h4>
+                        </div>
+                        <div className="text-sm text-slate-600">
+                            <span className="font-semibold">{items.length}</span> รายการ | <span className="font-semibold text-sky-700">{formatPrice(weekData.totalCost)}</span> บาท
+                        </div>
+                    </div>
+                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-50'}`}>
+                        <div className="p-4 bg-white">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                {/* Charger Summary Table */}
+                                <div>
+                                    <h5 className="font-semibold text-slate-800 mb-2">สรุปการใช้งานตู้ชาร์จ</h5>
+                                    <div className="overflow-x-auto border rounded-md">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-slate-100">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left font-medium text-slate-600">ตู้ชาร์จ</th>
+                                                    <th className="px-3 py-2 text-right font-medium text-slate-600">จำนวนครั้ง</th>
+                                                    <th className="px-3 py-2 text-right font-medium text-slate-600">ค่าใช้จ่าย (บาท)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {Object.entries(chargerSummary).sort(([,a],[,b]) => b.count - a.count).map(([charger, data]) => (
+                                                    <tr key={charger} className="border-t">
+                                                        <td className="px-3 py-2 font-medium text-slate-700">{charger}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-600">{data.count}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-600">{formatPrice(data.totalCost)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                 {/* Vehicle Summary Table */}
+                                <div>
+                                    <h5 className="font-semibold text-slate-800 mb-2">สรุปการใช้งานของรถ</h5>
+                                    <div className="overflow-x-auto border rounded-md">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-slate-100">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left font-medium text-slate-600">ทะเบียนรถ</th>
+                                                    <th className="px-3 py-2 text-right font-medium text-slate-600">จำนวนครั้ง</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                 {Object.entries(vehicleSummary).sort(([,a],[,b]) => b.count - a.count).map(([vehicle, data]) => (
+                                                    <tr key={vehicle} className="border-t">
+                                                        <td className="px-3 py-2 font-medium text-slate-700">{vehicle}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-600">{data.count}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Detailed Charging List */}
+                            <h5 className="font-semibold text-slate-800 mb-2">รายการชาร์จทั้งหมดในสัปดาห์นี้</h5>
+                             <div className="overflow-x-auto border rounded-md">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-100">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left font-medium text-slate-600">วันที่</th>
+                                            <th className="px-3 py-2 text-left font-medium text-slate-600">ตู้ชาร์จ</th>
+                                            <th className="px-3 py-2 text-right font-medium text-slate-600">จำนวน (kWh)</th>
+                                            <th className="px-3 py-2 text-right font-medium text-slate-600">ค่าไฟฟ้า (บาท)</th>
+                                            <th className="px-3 py-2 text-left font-medium text-slate-600">ระยะเวลา (นาที)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Object.entries(groupedWeeklyItems).map(([plate, summary]) => (
+                                            <React.Fragment key={plate}>
+                                                <tr className="bg-slate-200/60 border-t border-b border-slate-300">
+                                                    <td colSpan="5" className="px-3 py-2 font-semibold text-slate-800">
+                                                        ทะเบียน: {plate}
+                                                    </td>
+                                                </tr>
+                                                {summary.items.map((item, index) => (
+                                                    <tr key={item.id || index} className="border-t hover:bg-slate-50">
+                                                        <td className="px-3 py-2 text-slate-600 pl-6">{formatDate(item.date)}</td>
+                                                        <td className="px-3 py-2 text-slate-700">{item.chargerName}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-600">{formatNumber(item.units)}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-600">{formatPrice(item.electricityCost)}</td>
+                                                        <td className="px-3 py-2 text-slate-600">{item.duration}</td>
+                                                    </tr>
+                                                ))}
+                                                <tr className="bg-green-100 border-t-2 border-green-300 font-semibold">
+                                                    <td colSpan="2" className="px-3 py-2 text-right text-green-800">รวม</td>
+                                                    <td className="px-3 py-2 text-right text-green-800">{formatNumber(summary.totalKwh)}</td>
+                                                    <td className="px-3 py-2 text-right text-green-800">{formatPrice(summary.totalCost)}</td>
+                                                    <td className="px-3 py-2 text-green-800">{sumDurations(summary.durations)}</td>
+                                                </tr>
+                                            </React.Fragment>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const EVChargingApp = ({ data }) => {
+            const [expandedMonths, setExpandedMonths] = useState(new Set());
+            const [expandedWeeks, setExpandedWeeks] = useState(new Set());
+            const [selectedYear, setSelectedYear] = useState('all');
+            const [selectedMonth, setSelectedMonth] = useState('all');
+            const [selectedVehicleDetails, setSelectedVehicleDetails] = useState(null);
+
+            const { uniqueYears } = useMemo(() => {
+                const years = new Set(data.map(item => parseDate(item.date)?.getFullYear()).filter(Boolean));
+                return { uniqueYears: Array.from(years).sort((a, b) => b - a) };
+            }, [data]);
+
+            const filteredData = useMemo(() => {
+                if (selectedYear === 'all') return data;
+                return data.filter(item => {
+                    const date = parseDate(item.date);
+                    if (!date) return false;
+                    const yearMatch = date.getFullYear() === parseInt(selectedYear, 10);
+                    const monthMatch = selectedMonth === 'all' || date.getMonth() === parseInt(selectedMonth, 10);
+                    return yearMatch && monthMatch;
+                });
+            }, [data, selectedYear, selectedMonth]);
+
+            const dateRange = useMemo(() => {
+                if(filteredData.length === 0) return { startDate: null, endDate: null };
+                const dates = filteredData.map(item => parseDate(item.date).getTime()).filter(t => !isNaN(t));
+                if(dates.length === 0) return { startDate: null, endDate: null };
+                const startDate = new Date(Math.min(...dates));
+                const endDate = new Date(Math.max(...dates));
+                return { startDate, endDate };
+            }, [filteredData]);
+
+            const groupedData = useMemo(() => {
+                if (!filteredData || filteredData.length === 0) return [];
+
+                const getWeekInfo = (d) => {
+                    const date = new Date(d.getTime());
+                    date.setHours(0, 0, 0, 0);
+                    date.setDate(date.getDate() + 4 - (date.getDay() || 7));
+                    const yearStart = new Date(date.getFullYear(), 0, 1);
+                    const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+                    return `${date.getFullYear()}-W${weekNo}`;
+                };
+
+                const processed = filteredData.reduce((acc, item) => {
+                    const date = parseDate(item.date);
+                    if (!date) return acc;
+
+                    const year = date.getFullYear();
+                    const month = date.getMonth();
+                    const monthKey = `${year}-${month}`;
+                    const weekKey = getWeekInfo(date);
+
+                    if (!acc[monthKey]) {
+                        acc[monthKey] = { year, month, weeks: {}, totalKwh: 0, totalCost: 0, count: 0 };
+                    }
+
+                    if (!acc[monthKey].weeks[weekKey]) {
+                        const firstDayOfWeek = new Date(date);
+                        const day = firstDayOfWeek.getDay();
+                        const diff = firstDayOfWeek.getDate() - day + (day === 0 ? -6 : 1); 
+                        firstDayOfWeek.setDate(diff);
+                        
+                        const lastDayOfWeek = new Date(firstDayOfWeek);
+                        lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+
+                        acc[monthKey].weeks[weekKey] = { 
+                            items: [], 
+                            chargerSummary: {}, 
+                            vehicleSummary: {},
+                            totalKwh: 0,
+                            totalCost: 0,
+                            startDate: firstDayOfWeek.toISOString(),
+                            endDate: lastDayOfWeek.toISOString()
+                        };
+                    }
+                    
+                    const week = acc[monthKey].weeks[weekKey];
+                    week.items.push(item);
+                    
+                    const cost = parseFloat(item.electricityCost) || 0;
+                    const kwh = parseFloat(item.units) || 0;
+                    const charger = item.chargerName || 'ไม่ระบุ';
+                    const vehicle = item.licensePlate || 'ไม่ระบุ';
+
+                    week.totalCost += cost;
+                    week.totalKwh += kwh;
+                    
+                    if (!week.chargerSummary[charger]) week.chargerSummary[charger] = { count: 0, totalCost: 0 };
+                    week.chargerSummary[charger].count++;
+                    week.chargerSummary[charger].totalCost += cost;
+
+                    if (!week.vehicleSummary[vehicle]) week.vehicleSummary[vehicle] = { count: 0 };
+                    week.vehicleSummary[vehicle].count++;
+                    
+                    acc[monthKey].totalCost += cost;
+                    acc[monthKey].totalKwh += kwh;
+                    acc[monthKey].count++;
+
+                    return acc;
+                }, {});
+                
+                return Object.entries(processed).sort(([keyA], [keyB]) => new Date(keyB.split('-')[0], keyB.split('-')[1]) - new Date(keyA.split('-')[0], keyA.split('-')[1]));
+
+            }, [filteredData]);
+
+            const vehicleCostSummary = useMemo(() => {
+                if (!filteredData || filteredData.length === 0) return [];
+
+                const summary = filteredData.reduce((acc, item) => {
+                    const vehicle = item.licensePlate || 'ไม่ระบุ';
+                    const cost = parseFloat(item.electricityCost) || 0;
+
+                    if (!acc[vehicle]) {
+                        acc[vehicle] = { totalCost: 0, count: 0 };
+                    }
+                    acc[vehicle].totalCost += cost;
+                    acc[vehicle].count++;
+                    return acc;
+                }, {});
+
+                return Object.entries(summary)
+                    .map(([licensePlate, data]) => ({
+                        licensePlate,
+                        totalCost: data.totalCost,
+                        count: data.count,
+                    }))
+                    .sort((a, b) => b.totalCost - a.totalCost);
+
+            }, [filteredData]);
+
+            const chartData = useMemo(() => {
+                if (!filteredData || filteredData.length === 0) return { vehicleCost: [], chargerKwh: [] };
+
+                const vehicleSummary = filteredData.reduce((acc, item) => {
+                    const vehicle = item.licensePlate || 'ไม่ระบุ';
+                    const cost = parseFloat(item.electricityCost) || 0;
+                    if (!acc[vehicle]) acc[vehicle] = 0;
+                    acc[vehicle] += cost;
+                    return acc;
+                }, {});
+
+                const chargerSummary = filteredData.reduce((acc, item) => {
+                    const charger = item.chargerName || 'ไม่ระบุ';
+                    const kwh = parseFloat(item.units) || 0;
+                    if (!acc[charger]) acc[charger] = { totalKwh: 0, count: 0 };
+                    acc[charger].totalKwh += kwh;
+                    acc[charger].count++;
+                    return acc;
+                }, {});
+
+                const vehicleCost = Object.entries(vehicleSummary)
+                    .map(([label, value]) => ({ label, value, displayValue: formatPrice(value) }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 10);
+
+                const chargerKwh = Object.entries(chargerSummary)
+                    .map(([label, data]) => ({ label, value: data.totalKwh, displayValue: `${formatNumber(data.totalKwh)} kWh` }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 10);
+
+                return { vehicleCost, chargerKwh };
+            }, [filteredData]);
+
+            const toggleMonth = (monthKey) => {
+                setExpandedMonths(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(monthKey)) newSet.delete(monthKey);
+                    else newSet.add(monthKey);
+                    return newSet;
+                });
+            };
+
+            const toggleWeek = (weekKey) => {
+                setExpandedWeeks(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(weekKey)) newSet.delete(weekKey);
+                    else newSet.add(weekKey);
+                    return newSet;
+                });
+            };
+            
+            const { totalKwh, totalCost, avgKwhPerDay, avgCostPerDay } = useMemo(() => {
+                if (filteredData.length === 0) {
+                    return { totalKwh: 0, totalCost: 0, avgKwhPerDay: 0, avgCostPerDay: 0 };
+                }
+                const kwh = filteredData.reduce((sum, item) => sum + (parseFloat(item.units) || 0), 0);
+                const cost = filteredData.reduce((sum, item) => sum + (parseFloat(item.electricityCost) || 0), 0);
+
+                let numberOfDays = 0;
+                if (dateRange.startDate && dateRange.endDate) {
+                    const diffTime = Math.abs(dateRange.endDate.getTime() - dateRange.startDate.getTime());
+                    numberOfDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                } else if (filteredData.length > 0) {
+                     numberOfDays = 1;
+                }
+
+                const avgKwhPerDay = numberOfDays > 0 ? kwh / numberOfDays : 0;
+                const avgCostPerDay = numberOfDays > 0 ? cost / numberOfDays : 0;
+
+                return { totalKwh: kwh, totalCost: cost, avgKwhPerDay, avgCostPerDay };
+            }, [filteredData, dateRange]);
+
+            const summaryFooterText = dateRange.startDate && dateRange.endDate 
+                ? `ข้อมูล ณ ${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`
+                : "ไม่มีข้อมูลในข่วงที่เลือก";
+
+            return (
+                <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">ประวัติการชาร์จรถ EV</h2>
+                    
+                    <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-2">
+                        <select value={selectedYear} onChange={e => { setSelectedYear(e.target.value); setSelectedMonth('all'); }} className="px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="all">ทุกปี</option>
+                            {uniqueYears.map(y => <option key={y} value={y}>{y + 543}</option>)}
+                        </select>
+                        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" disabled={selectedYear === 'all'}>
+                            <option value="all">ทุกเดือน</option>
+                            {Array.from({ length: 12 }).map((_, i) => <option key={i} value={i}>{getThaiMonthName(i)}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <SummaryCard title="ปริมาณการใช้ไฟทั้งหมด" value={formatNumber(totalKwh)} unit="kWh" icon={<Icons name="bolt" />} color={{ bg: 'bg-sky-100', icon: 'text-sky-600', border: 'border-sky-500' }} footerText={summaryFooterText} />
+                        <SummaryCard title="ค่าไฟฟ้าทั้งหมด" value={formatPrice(totalCost)} unit="บาท" icon={<Icons name="balance" />} color={{ bg: 'bg-amber-100', icon: 'text-amber-600', border: 'border-amber-500' }} footerText={summaryFooterText}/>
+                        <SummaryCard title="ใช้ไฟเฉลี่ยต่อวัน" value={formatNumber(avgKwhPerDay)} unit="kWh" icon={<Icons name="bolt" />} color={{ bg: 'bg-teal-100', icon: 'text-teal-600', border: 'border-teal-500' }} footerText="คำนวณจากช่วงวันที่ที่เลือก" />
+                        <SummaryCard title="ค่าไฟเฉลี่ยต่อวัน" value={formatPrice(avgCostPerDay)} unit="บาท" icon={<Icons name="balance" />} color={{ bg: 'bg-indigo-100', icon: 'text-indigo-600', border: 'border-indigo-500' }} footerText="คำนวณจากช่วงวันที่ที่เลือก" />
+                    </div>
+                    
+                    <EVChargingCharts chartData={chartData} />
+                    <VehicleCostSummaryTable summaryData={vehicleCostSummary} onVehicleSelect={setSelectedVehicleDetails} />
+
+                    <h3 className="text-lg font-semibold text-slate-800 mb-3 mt-8">รายละเอียดการชาร์จรายเดือน/สัปดาห์</h3>
+                    <div className="space-y-4">
+                        {groupedData.length > 0 ? groupedData.map(([monthKey, monthData]) => {
+                             const monthName = getThaiMonthName(monthData.month) + ' ' + monthData.year;
+                             const isMonthExpanded = expandedMonths.has(monthKey);
+                             const sortedWeeks = Object.entries(monthData.weeks).sort(([, a], [, b]) => new Date(a.startDate) - new Date(b.startDate));
+
+                             return (
+                                <div key={monthKey} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+                                     <div onClick={() => toggleMonth(monthKey)} className="month-header bg-blue-50 px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-blue-100 transition-colors duration-200">
+                                        <div className="flex items-center">
+                                            <span className={`transform transition-transform duration-200 ${isMonthExpanded ? 'rotate-0' : '-rotate-90'}`}>
+                                                <Icons name="chevronDown" className="h-5 w-5 mr-2 text-blue-600" />
+                                            </span>
+                                            <h3 className="font-semibold text-blue-800 text-lg">{monthName}</h3>
+                                        </div>
+                                        <div className="text-sm text-slate-700">
+                                            <span className="font-semibold">{monthData.count}</span> รายการ | <span className="font-semibold text-sky-800">{formatPrice(monthData.totalCost)}</span> บาท
+                                        </div>
+                                    </div>
+                                    <div className={`month-content transition-all duration-300 ease-in-out overflow-hidden ${isMonthExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-50'}`}>
+                                        <div className="p-4 bg-blue-50/30">
+                                            {sortedWeeks.map(([weekKey, weekData], index) => (
+                                                <WeeklyAccordion 
+                                                    key={weekKey}
+                                                    weekData={weekData}
+                                                    weekNumber={index + 1}
+                                                    isExpanded={expandedWeeks.has(weekKey)}
+                                                    onToggle={() => toggleWeek(weekKey)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                             )
+                        }) : <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลการชาร์จ</div>}
+                    </div>
+                    {selectedVehicleDetails && (
+                        <VehicleChargeDetailsModal 
+                            vehiclePlate={selectedVehicleDetails}
+                            chargeData={filteredData}
+                            onClose={() => setSelectedVehicleDetails(null)}
+                        />
+                    )}
+                </div>
+            );
+        };
+        // ### EV CHARGING APP COMPONENTS (END) ###
+
+
+        // ##################################################################
+        // ### MAIN APP COMPONENT (คอมโพเนนต์หลัก) ###
+        // ##################################################################
+        const App = () => {
+            const [activeApp, setActiveApp] = useState('repair'); // 'repair', 'fuel', or 'ev'
+            const [data, setData] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+            useEffect(() => {
+                const handleResize = () => setIsMobile(window.innerWidth < 768);
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+
+            const fetchDataFromScript = async () => {
+                if (SCRIPT_URL === 'YOUR_CONSOLIDATED_WEB_APP_URL_HERE') {
+                    setError('กรุณาตั้งค่า URL ของ Google Apps Script ในโค้ดก่อน');
+                    setLoading(false);
+                    return;
+                }
+                setLoading(true);
+                setError(null);
+                try {
+                    // Initialize Firebase
+                    const app = window.firebase.initializeApp(firebaseConfig);
+                    const db = window.firebase.getFirestore(app);
+
+                    // Fetch from Google Sheet and Firebase in parallel
+                    const [sheetResponse, historySnapshot] = await Promise.all([
+                        fetch(SCRIPT_URL),
+                        window.firebase.getDocs(window.firebase.query(
+                            window.firebase.collection(db, `artifacts/sodium-burner-428202-f9/history`),
+                            window.firebase.orderBy("date", "desc")
+                        ))
+                    ]);
+
+                    if (!sheetResponse.ok) {
+                        throw new Error(`Google Script fetch failed with status ${sheetResponse.status}`);
+                    }
+                    const sheetJson = await sheetResponse.json();
+                    if (sheetJson.error) throw new Error(sheetJson.error);
+
+                    const historyList = historySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                    setData({
+                        repairData: sheetJson.repairData,
+                        fuelData: sheetJson.fuelData,
+                        evData: historyList
+                    });
+
+                } catch (err) {
+                    console.error("Error fetching data:", err);
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                fetchDataFromScript();
+            }, []);
+
+            const renderActiveApp = () => {
+                if (loading) return <Loader text="กำลังโหลดข้อมูลทั้งหมด..." />;
+                if (error) return <div className="text-center p-8 text-red-600 bg-red-100 rounded-lg m-4"><strong>เกิดข้อผิดพลาด:</strong> {error}</div>;
+                if (!data) return <div className="text-center p-8">ไม่พบข้อมูล</div>;
+
+                switch (activeApp) {
+                    case 'repair':
+                        return <RepairApp data={data.repairData} isMobile={isMobile} />;
+                    case 'fuel':
+                        return <FuelApp data={data.fuelData} />;
+                    case 'ev':
+                        return <EVChargingApp data={data.evData} />;
+                    default:
+                        return null;
+                }
+            };
+
+            return (
+                <div className="container mx-auto p-4 sm:p-6">
+                    <header className="mb-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-center">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 sm:mb-0">Dashboard ภาพรวม</h1>
+                            <button onClick={fetchDataFromScript} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center transition duration-300 disabled:bg-blue-300">
+                                <Icons name="refresh" className="w-5 h-5 mr-2" />
+                                รีเฟรชข้อมูล
+                            </button>
+                        </div>
+                        <nav className="mt-6 flex justify-center bg-gray-200 rounded-lg p-1">
+                            <button onClick={() => setActiveApp('repair')} className={`w-1/3 p-3 rounded-md font-semibold transition-colors duration-300 flex items-center justify-center ${activeApp === 'repair' ? 'main-nav-active' : 'main-nav-inactive'}`}>
+                                <Icons name="toolbox" className="w-5 h-5 mr-2" />
+                                รายงานแจ้งซ่อม
+                            </button>
+                            <button onClick={() => setActiveApp('fuel')} className={`w-1/3 p-3 rounded-md font-semibold transition-colors duration-300 flex items-center justify-center ${activeApp === 'fuel' ? 'main-nav-active' : 'main-nav-inactive'}`}>
+                                <Icons name="fuelPump" className="w-5 h-5 mr-2" />
+                                สรุปเบิกจ่ายน้ำมัน
+                            </button>
+                            <button onClick={() => setActiveApp('ev')} className={`w-1/3 p-3 rounded-md font-semibold transition-colors duration-300 flex items-center justify-center ${activeApp === 'ev' ? 'main-nav-active' : 'main-nav-inactive'}`}>
+                                <Icons name="bolt" className="w-5 h-5 mr-2" />
+                                รายงานชาร์จรถ EV
+                            </button>
+                        </nav>
+                    </header>
+                    <main>
+                        {renderActiveApp()}
+                    </main>
+                </div>
+            );
+        };
+
+        // --- RENDER APP ---
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<React.StrictMode><App /></React.StrictMode>);
+    </script>
 </body>
 </html>
