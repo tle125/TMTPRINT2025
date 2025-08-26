@@ -89,23 +89,11 @@
         border-bottom: 2px solid #3b82f6;
         color: #3b82f6;
     }
-    .arrow-icon {
-        transition: transform 0.2s ease-in-out;
-        display: inline-block;
-    }
   </style>
 </head>
 <body class="bg-gray-100 text-base leading-tight">
   <div class="w-full max-w-4xl mx-auto p-4">
     
-    <!-- Tab Navigation -->
-    <div class="no-print mb-4 border-b border-gray-200">
-        <nav class="flex -mb-px space-x-8" aria-label="Tabs">
-            <button id="tab-creator" class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">สร้างใบชั่ง</button>
-            <button id="tab-history" class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-gray-700">ประวัติการพิมพ์</button>
-        </nav>
-    </div>
-
     <!-- Creator View -->
     <div id="creator-view">
         <!-- Control Panel -->
@@ -206,29 +194,6 @@
         </div>
     </div>
 
-    <!-- History View -->
-    <div id="history-view" class="hidden">
-        <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200">
-            <h3 class="text-xl font-bold mb-4 text-gray-700">ประวัติการพิมพ์วันนี้</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">รายละเอียด</th>
-                            <th scope="col" class="px-6 py-3 text-right text-lg font-medium text-gray-500 uppercase tracking-wider">น้ำหนักรวม (กก.)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-table-body" class="bg-white divide-y divide-gray-200 text-lg">
-                        <!-- Grouped history rows will be inserted here -->
-                    </tbody>
-                    <tfoot id="history-table-foot" class="bg-gray-200 font-bold text-xl">
-                        <!-- Grand total row will be inserted here -->
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-    </div>
-
     <!-- Custom Alert Modal -->
     <div id="custom-alert" class="no-print hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
         <div class="bg-white p-8 rounded-lg shadow-xl text-center w-1/3">
@@ -239,28 +204,7 @@
 
   </div>
 
-  <script type="module">
-    // Import Firebase services
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, onSnapshot, runTransaction, setDoc, collection, addDoc, serverTimestamp, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // --- Firebase Configuration ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyAv9NDseWrQcoBX7tlLAJejR_ZE0f_KHYk",
-      authDomain: "weight-slip-58eb1.firebaseapp.com",
-      projectId: "weight-slip-58eb1",
-      storageBucket: "weight-slip-58eb1.appspot.com",
-      messagingSenderId: "822973378659",
-      appId: "1:822973378659:web:7743d7dbcca10c35c00856",
-      measurementId: "G-12PEMGQWCC"
-    };
-
-    let db;
-    let counterRef;
-    let historyCollectionRef;
-    let unsubscribeHistory = null;
-
+  <script>
     // --- Main App Logic ---
     let parsedDataStore = [];
 
@@ -278,48 +222,30 @@
         customAlert.classList.add('hidden');
     });
 
-
-    async function printAndIncrement() {
-        if (!db) {
-            showAlert("ยังไม่ได้เชื่อมต่อกับฐานข้อมูล กรุณาตรวจสอบการตั้งค่า Firebase Config");
-            return;
-        }
-
-        const ticketId = document.getElementById('ticket-id-val').textContent;
+    function printSlip() {
         const vehicleId = document.getElementById('vehicle-id-val').textContent;
         const partnerName = document.getElementById('partner-name-val').textContent;
-        const productName = document.getElementById('product-name-val').textContent;
         const netWeight = document.getElementById('net-weight-input').value;
 
         if (!vehicleId || !partnerName) {
             showAlert("กรุณาเลือกข้อมูล DO ก่อนพิมพ์");
             return;
         }
-
-        try {
-            await addDoc(historyCollectionRef, {
-                ticketNumber: ticketId,
-                vehicleId: vehicleId,
-                partnerName: partnerName,
-                productName: productName,
-                netWeight: parseFloat(netWeight) || 0,
-                timestamp: serverTimestamp()
-            });
-
-            await runTransaction(db, async (transaction) => {
-                const counterDoc = await transaction.get(counterRef);
-                let newCount = 1;
-                if (counterDoc.exists()) {
-                    newCount = counterDoc.data().value + 1;
-                }
-                transaction.set(counterRef, { value: newCount });
-            });
-            
-            window.print();
-        } catch (e) {
-            console.error("Error during print and save transaction: ", e);
-            showAlert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + e.message);
+        if (!netWeight || parseFloat(netWeight) <= 0) {
+            showAlert("กรุณาระบุน้ำหนักสุทธิก่อนพิมพ์");
+            return;
         }
+        
+        // Generate a new ticket number for this print
+        generateTicketNumber();
+        
+        // Update date and time to the moment of printing
+        updateDateTime();
+
+        // Use a short timeout to ensure the UI updates before the print dialog opens
+        setTimeout(() => {
+            window.print();
+        }, 100);
     }
     
     function updateDateTime() {
@@ -333,6 +259,19 @@
       document.getElementById('time-in-val').textContent = formattedTime;
       document.getElementById('date-out-val').textContent = formattedDate;
       document.getElementById('time-out-val').textContent = formattedTime;
+    }
+
+    function generateTicketNumber() {
+        const now = new Date();
+        const year = now.getFullYear().toString().slice(-2);
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        // Example format: 08-240725143055
+        const formattedTicket = `08-${year}${month}${day}${hours}${minutes}${seconds}`;
+        document.getElementById('ticket-id-val').textContent = formattedTicket;
     }
 
     function processPastedData() {
@@ -439,196 +378,16 @@
         document.getElementById('net-weight-val').textContent = `${netWeight.toLocaleString('en-US')} กก.`;
     }
 
-    function loadPrintHistory() {
-        if (!db) return;
-
-        if (unsubscribeHistory) {
-            unsubscribeHistory();
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        const startOfToday = Timestamp.fromDate(today);
-        const startOfTomorrow = Timestamp.fromDate(tomorrow);
-
-        const q = query(historyCollectionRef, 
-            where("timestamp", ">=", startOfToday),
-            where("timestamp", "<", startOfTomorrow),
-            orderBy("timestamp", "desc")
-        );
-
-        unsubscribeHistory = onSnapshot(q, (querySnapshot) => {
-            const historyTableBody = document.getElementById('history-table-body');
-            const historyTableFoot = document.getElementById('history-table-foot');
-            historyTableBody.innerHTML = '';
-            historyTableFoot.innerHTML = '';
-
-            if (querySnapshot.empty) {
-                historyTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4">ยังไม่มีข้อมูลการพิมพ์สำหรับวันนี้</td></tr>';
-                return;
-            }
-
-            const groupedData = {};
-            let grandTotalWeight = 0;
-
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                const vehicleId = data.vehicleId;
-                grandTotalWeight += data.netWeight;
-
-                if (!groupedData[vehicleId]) {
-                    groupedData[vehicleId] = {
-                        records: [],
-                        totalWeight: 0
-                    };
-                }
-                groupedData[vehicleId].records.push(data);
-                groupedData[vehicleId].totalWeight += data.netWeight;
-            });
-
-            for (const vehicleId in groupedData) {
-                const group = groupedData[vehicleId];
-                
-                const headerRow = document.createElement('tr');
-                headerRow.className = 'bg-gray-100 cursor-pointer hover:bg-gray-200 group-header';
-                headerRow.dataset.target = `group-${vehicleId.replace(/\s+/g, '-')}`;
-                headerRow.innerHTML = `
-                    <td class="px-6 py-3 font-bold text-lg">
-                        <span class="arrow-icon">▶</span>
-                        ทะเบียนรถ: ${vehicleId}
-                    </td>
-                    <td class="px-6 py-3 font-bold text-lg text-right">${group.totalWeight.toLocaleString('en-US')} กก.</td>
-                `;
-                historyTableBody.appendChild(headerRow);
-
-                const detailContainer = document.createElement('tr');
-                const detailCell = document.createElement('td');
-                detailCell.colSpan = 2;
-                detailCell.className = `p-0 detail-row group-${vehicleId.replace(/\s+/g, '-')} hidden`;
-                
-                const innerTable = document.createElement('table');
-                innerTable.className = 'min-w-full';
-                
-                group.records.forEach(record => {
-                    const time = record.timestamp ? record.timestamp.toDate().toLocaleTimeString('th-TH') : 'N/A';
-                    innerTable.innerHTML += `
-                        <tr class="border-t">
-                            <td class="px-6 py-2 whitespace-nowrap pl-12">${record.ticketNumber}</td>
-                            <td class="px-6 py-2 whitespace-nowrap">${time}</td>
-                            <td class="px-6 py-2 whitespace-nowrap">${record.partnerName}</td>
-                            <td class="px-6 py-2 whitespace-nowrap">${record.productName}</td>
-                            <td class="px-6 py-2 whitespace-nowrap text-right">${record.netWeight.toLocaleString('en-US')} กก.</td>
-                        </tr>
-                    `;
-                });
-                detailCell.appendChild(innerTable);
-                detailContainer.appendChild(detailCell);
-                historyTableBody.appendChild(detailContainer);
-            }
-
-            const grandTotalRow = document.createElement('tr');
-            grandTotalRow.innerHTML = `
-                <td class="px-6 py-4 text-right">รวมน้ำหนักทั้งหมด:</td>
-                <td class="px-6 py-4 whitespace-nowrap text-right">${grandTotalWeight.toLocaleString('en-US')} กก.</td>
-            `;
-            historyTableFoot.appendChild(grandTotalRow);
-
-        }, (error) => {
-            console.error("Error loading history:", error);
-            const historyTableBody = document.getElementById('history-table-body');
-            historyTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-red-500">ไม่สามารถโหลดข้อมูลได้</td></tr>';
-        });
-    }
-
     // --- Initialization ---
-    async function initialize() {
-        if (firebaseConfig && firebaseConfig.apiKey) {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                const auth = getAuth(app);
-
-                await signInAnonymously(auth);
-
-                counterRef = doc(db, 'counters', 'ticketCounter');
-                historyCollectionRef = collection(db, 'print_history');
-
-                onSnapshot(counterRef, (doc) => {
-                    let currentCount = 1;
-                    if (doc.exists()) {
-                        currentCount = doc.data().value;
-                    } else {
-                        setDoc(counterRef, { value: 1 });
-                    }
-                    const formattedTicket = `08-${String(currentCount).padStart(4, '0')}`;
-                    document.getElementById('ticket-id-val').textContent = formattedTicket;
-                }, (error) => {
-                    console.error("Error listening to counter:", error);
-                    showAlert("เกิดข้อผิดพลาดในการดึงเลขที่บัตร: " + error.message);
-                });
-
-            } catch (e) {
-                console.error("Firebase initialization failed:", e);
-                showAlert("การเชื่อมต่อ Firebase ล้มเหลว: " + e.message);
-            }
-        } else {
-            console.warn("Firebase config is missing.");
-            showAlert("กรุณาตั้งค่า Firebase Config ในโค้ดก่อนใช้งาน");
-        }
-
-        const creatorView = document.getElementById('creator-view');
-        const historyView = document.getElementById('history-view');
-        const tabCreator = document.getElementById('tab-creator');
-        const tabHistory = document.getElementById('tab-history');
-        const historyTableBody = document.getElementById('history-table-body');
-
-        historyTableBody.addEventListener('click', (event) => {
-            const header = event.target.closest('.group-header');
-            if (!header) return;
-
-            const targetClass = header.dataset.target;
-            const detailRow = document.querySelector(`.detail-row.${targetClass}`);
-            const arrow = header.querySelector('.arrow-icon');
-
-            if (detailRow) {
-                detailRow.classList.toggle('hidden');
-                if (detailRow.classList.contains('hidden')) {
-                    arrow.style.transform = 'rotate(0deg)';
-                } else {
-                    arrow.style.transform = 'rotate(90deg)';
-                }
-            }
-        });
-
-        tabCreator.addEventListener('click', () => {
-            creatorView.classList.remove('hidden');
-            historyView.classList.add('hidden');
-            tabCreator.classList.add('active');
-            tabHistory.classList.remove('active');
-            if (unsubscribeHistory) {
-                unsubscribeHistory();
-                unsubscribeHistory = null;
-            }
-        });
-
-        tabHistory.addEventListener('click', () => {
-            historyView.classList.remove('hidden');
-            creatorView.classList.add('hidden');
-            tabHistory.classList.add('active');
-            tabCreator.classList.remove('active');
-            loadPrintHistory();
-        });
-
+    function initialize() {
         document.getElementById('process-data-btn').addEventListener('click', processPastedData);
-        document.getElementById('print-btn').addEventListener('click', printAndIncrement);
+        document.getElementById('print-btn').addEventListener('click', printSlip);
         document.getElementById('do-select').addEventListener('change', updateFormOnDoSelect);
         document.getElementById('product-select').addEventListener('change', updateProduct);
         document.getElementById('net-weight-input').addEventListener('input', updateNetWeight);
 
         updateDateTime();
+        generateTicketNumber();
         updateProduct();
         updateNetWeight();
     }
