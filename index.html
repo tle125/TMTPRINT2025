@@ -263,14 +263,30 @@
 
     function generateTicketNumber() {
         const now = new Date();
-        const year = now.getFullYear().toString().slice(-2);
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        const seconds = now.getSeconds().toString().padStart(2, '0');
-        // Example format: 08-240725143055
-        const formattedTicket = `08-${year}${month}${day}${hours}${minutes}${seconds}`;
+        const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0'); // e.g., "08"
+
+        // Get tracking data from localStorage to persist the counter
+        let ticketCounterData = JSON.parse(localStorage.getItem('ticketCounter')) || {};
+        let lastMonth = ticketCounterData.month;
+        let lastSequence = ticketCounterData.sequence || 0;
+
+        let newSequence;
+        // If the month has changed, reset the counter. Otherwise, increment it.
+        if (currentMonth !== lastMonth) {
+            newSequence = 1;
+        } else {
+            newSequence = lastSequence + 1;
+        }
+
+        // Save the new state back to localStorage
+        localStorage.setItem('ticketCounter', JSON.stringify({ month: currentMonth, sequence: newSequence }));
+
+        // Format the sequence number to be 3 digits with leading zeros (e.g., 001, 012)
+        const formattedSequence = newSequence.toString().padStart(3, '0');
+
+        // Create the final ticket number string in MM-XXX format
+        const formattedTicket = `${currentMonth}-${formattedSequence}`; // e.g., "08-001"
+        
         document.getElementById('ticket-id-val').textContent = formattedTicket;
     }
 
