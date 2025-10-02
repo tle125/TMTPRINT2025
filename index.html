@@ -104,9 +104,17 @@
                 <div>
                     <label for="paste-area" class="block text-lg font-medium text-gray-700 mb-1">1. วางข้อมูลที่คัดลอกมาที่นี่:</label>
                     <textarea id="paste-area" rows="8" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="วางข้อมูลจาก Excel ที่นี่ โปรแกรมจะดึงข้อมูลที่จำเป็นให้เอง"></textarea>
-                    <button id="process-data-btn" class="mt-2 w-full bg-blue-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                      ประมวลผลข้อมูล
-                    </button>
+                    <div class="mt-2 grid grid-cols-3 gap-2">
+                        <button id="paste-data-btn" class="bg-green-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                          วางข้อมูล
+                        </button>
+                        <button id="process-data-btn" class="bg-blue-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                          ประมวลผลข้อมูล
+                        </button>
+                        <button id="clear-data-btn" class="bg-red-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                          ลบข้อมูล
+                        </button>
+                    </div>
                 </div>
                 <!-- Manual Inputs & Actions -->
                 <div class="space-y-4">
@@ -263,30 +271,23 @@
 
     function generateTicketNumber() {
         const now = new Date();
-        const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0'); // e.g., "08"
-
-        // Get tracking data from localStorage to persist the counter
-        let ticketCounterData = JSON.parse(localStorage.getItem('ticketCounter')) || {};
-        let lastMonth = ticketCounterData.month;
-        let lastSequence = ticketCounterData.sequence || 0;
-
-        let newSequence;
-        // If the month has changed, reset the counter. Otherwise, increment it.
-        if (currentMonth !== lastMonth) {
-            newSequence = 1;
-        } else {
-            newSequence = lastSequence + 1;
-        }
-
-        // Save the new state back to localStorage
-        localStorage.setItem('ticketCounter', JSON.stringify({ month: currentMonth, sequence: newSequence }));
-
-        // Format the sequence number to be 3 digits with leading zeros (e.g., 001, 012)
-        const formattedSequence = newSequence.toString().padStart(3, '0');
-
-        // Create the final ticket number string in MM-XXX format
-        const formattedTicket = `${currentMonth}-${formattedSequence}`; // e.g., "08-001"
+        const day = now.getDate().toString().padStart(2, '0');
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
         
+        // Create a key for today's date
+        const dateKey = `ticket_counter_${day}${month}`;
+        
+        // Get today's counter from localStorage, default to 0
+        let counter = parseInt(localStorage.getItem(dateKey) || '0');
+        
+        // Increment counter for this ticket
+        counter++;
+        
+        // Save updated counter to localStorage
+        localStorage.setItem(dateKey, counter.toString());
+        
+        // Format: วันที่+เดือน+ลำดับ (e.g., 25120001 for 25 Dec, ticket #1)
+        const formattedTicket = `${day}${month}${counter.toString().padStart(4, '0')}`;
         document.getElementById('ticket-id-val').textContent = formattedTicket;
     }
 
@@ -354,6 +355,11 @@
         const partnerNameEl = document.getElementById('partner-name-val');
         const notesEl = document.getElementById('notes-val');
         const productSelect = document.getElementById('product-select');
+        const netWeightInput = document.getElementById('net-weight-input');
+
+        // Clear net weight input when DO changes
+        netWeightInput.value = '';
+        updateNetWeight();
 
         if (selectedDo) {
             const entry = parsedDataStore.find(item => item.do === selectedDo);
@@ -394,9 +400,69 @@
         document.getElementById('net-weight-val').textContent = `${netWeight.toLocaleString('en-US')} กก.`;
     }
 
+    function clearData() {
+        // Clear the paste area
+        document.getElementById('paste-area').value = '';
+        
+        // Reset the DO select dropdown
+        const doSelect = document.getElementById('do-select');
+        doSelect.innerHTML = '<option>--- กรุณาประมวลผลข้อมูลก่อน ---</option>';
+        doSelect.disabled = true;
+        
+        // Reset product select to first option
+        document.getElementById('product-select').selectedIndex = 0;
+        
+        // Clear net weight input
+        document.getElementById('net-weight-input').value = '';
+        
+        // Clear all display values
+        document.getElementById('vehicle-id-val').textContent = '';
+        document.getElementById('partner-name-val').textContent = '';
+        document.getElementById('notes-val').textContent = '';
+        
+        // Reset product and net weight displays
+        updateProduct();
+        updateNetWeight();
+        
+        // Clear the parsed data store
+        parsedDataStore = [];
+        
+        showAlert('ลบข้อมูลเรียบร้อยแล้ว');
+    }
+
+    async function pasteData() {
+        try {
+            // Check if clipboard API is available
+            if (!navigator.clipboard) {
+                showAlert('เบราว์เซอร์ไม่รองรับการวางข้อมูลอัตโนมัติ กรุณาใช้ Ctrl+V แทน');
+                return;
+            }
+            
+            // Read text from clipboard
+            const clipboardText = await navigator.clipboard.readText();
+            
+            if (clipboardText.trim() === '') {
+                showAlert('ไม่พบข้อมูลในคลิปบอร์ด');
+                return;
+            }
+            
+            // Paste the data into the textarea
+            const pasteArea = document.getElementById('paste-area');
+            pasteArea.value = clipboardText;
+            
+            showAlert('วางข้อมูลเรียบร้อยแล้ว');
+            
+        } catch (error) {
+            // Handle permission denied or other errors
+            showAlert('ไม่สามารถเข้าถึงคลิปบอร์ดได้ กรุณาใช้ Ctrl+V แทน');
+        }
+    }
+
     // --- Initialization ---
     function initialize() {
+        document.getElementById('paste-data-btn').addEventListener('click', pasteData);
         document.getElementById('process-data-btn').addEventListener('click', processPastedData);
+        document.getElementById('clear-data-btn').addEventListener('click', clearData);
         document.getElementById('print-btn').addEventListener('click', printSlip);
         document.getElementById('do-select').addEventListener('change', updateFormOnDoSelect);
         document.getElementById('product-select').addEventListener('change', updateProduct);
