@@ -146,6 +146,14 @@
                         <label for="net-weight-input" class="block text-lg font-medium text-gray-700">4. ระบุน้ำหนักสุทธิ (กก.):</label>
                         <input type="number" id="net-weight-input" class="form-control-lg mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น 2408">
                     </div>
+                    <div class="no-print">
+                      <label for="image-upload" class="block text-lg font-medium text-gray-700">5. อัพโหลดรูปโลโก้/รูปประกอบ (ไม่บันทึกไฟล์):</label>
+                      <input type="file" id="image-upload" accept="image/*" class="mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm" />
+                      <div class="mt-2 flex items-center gap-2">
+                        <button id="clear-image-btn" class="bg-gray-600 text-white px-4 py-2 text-lg font-bold rounded-md hover:bg-gray-700 focus:outline-none">ลบรูป</button>
+                        <span class="text-sm text-gray-500">รูปจะแสดงในบัตรชั่งเหนือหัวกระดาษ</span>
+                      </div>
+                    </div>
                     <div class="text-right">
                         <button id="print-btn" class="bg-green-600 text-white px-6 py-2 text-2xl font-bold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                           พิมพ์บัตรชั่ง
@@ -156,6 +164,8 @@
         </div>
         <!-- The main content area to be printed -->
         <div id="printable-area" class="w-full px-1 py-2 bg-white shadow-lg">
+          <!-- Uploaded Image (will be printed) -->
+          <div class="flex justify-end"><img id="uploaded-image" alt="รูปอัพโหลด" class="h-16 w-auto" style="max-width:200px; object-fit:contain;" /></div>
           <!-- Header section -->
           <div class="text-center">
             <h1 class="text-[35px] font-extrabold">บริษัท ทีเอ็มที สตีล จำกัด (มหาชน)</h1>
@@ -437,6 +447,16 @@
         // Clear the parsed data store
         parsedDataStore = [];
         
+        // Clear uploaded image
+        const uploadedImg = document.getElementById('uploaded-image');
+        if (uploadedImg) {
+          if (uploadedImg.dataset.objUrl) {
+            URL.revokeObjectURL(uploadedImg.dataset.objUrl);
+            delete uploadedImg.dataset.objUrl;
+          }
+          uploadedImg.src = '';
+        }
+        
         showAlert('ลบข้อมูลเรียบร้อยแล้ว');
     }
 
@@ -477,6 +497,33 @@
         document.getElementById('do-select').addEventListener('change', updateFormOnDoSelect);
         document.getElementById('product-select').addEventListener('change', updateProduct);
         document.getElementById('net-weight-input').addEventListener('input', updateNetWeight);
+
+        // Image upload handlers
+        const imageInput = document.getElementById('image-upload');
+        const uploadedImg = document.getElementById('uploaded-image');
+        const clearImageBtn = document.getElementById('clear-image-btn');
+        if (imageInput && uploadedImg) {
+          imageInput.addEventListener('change', () => {
+            const file = imageInput.files && imageInput.files[0];
+            if (!file) return;
+            // Revoke old URL if exists
+            if (uploadedImg.dataset.objUrl) {
+              URL.revokeObjectURL(uploadedImg.dataset.objUrl);
+            }
+            const objUrl = URL.createObjectURL(file);
+            uploadedImg.src = objUrl;
+            uploadedImg.dataset.objUrl = objUrl;
+          });
+        }
+        if (clearImageBtn && uploadedImg) {
+          clearImageBtn.addEventListener('click', () => {
+            if (uploadedImg.dataset.objUrl) {
+              URL.revokeObjectURL(uploadedImg.dataset.objUrl);
+              delete uploadedImg.dataset.objUrl;
+            }
+            uploadedImg.src = '';
+          });
+        }
 
         updateDateTime();
         generateTicketNumber();
