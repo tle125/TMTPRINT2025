@@ -1,528 +1,1254 @@
 <!DOCTYPE html>
 <html lang="th">
-<head>
-  <link rel="icon" type="image/png" href="https://img.icons8.com/?size=60&id=Aw985SswKomO&format=png">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ระบบคำนวนและพิมพ์บัตรชั่ง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Sarabun', sans-serif;
+      }
+      .font-angsana {
+        font-family: 'Angsana New', 'Cordia New', 'Sarabun', sans-serif;
+      }
+      @media print {
+        @page {
+          size: 5.5in 9in;
+          margin: 4mm;
+        }
+      
+        /* Remove clipping from parent containers */
+        body, main, div[class*="overflow-hidden"] {
+          overflow: visible !important;
+        }
+        
+        /* Hide all elements on the page by default */
+        body * {
+          visibility: hidden;
+        }
 
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ใบชั่งน้ำหนัก</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Note: Angsana New is a system font, no Google Font link is needed. It will rely on the user's system having the font. -->
-  <style>
-    /* Use Angsana New font as the base, with fallbacks */
-    body { 
-      font-family: 'Angsana New', 'Cordia New', serif; 
-    }
-    /* Print-specific styles */
-    @media print {
-      @page { 
-        size: 5.5in 9.5in; 
-        margin: 0.05in; 
-      }
-      .no-print { 
-        display: none !important; 
-      }
-      body { 
-        background-color: #ffffff !important; 
-        margin: 0; 
-      }
-      #printable-area { 
-        box-shadow: none !important; 
-        width: 100% !important; 
-        margin: 0 !important; 
-      }
-    }
-    /* Flexbox row for inline elements */
-    .row { 
-      display: flex; 
-      align-items: baseline; 
-    }
-    .row .label { 
-      white-space: nowrap; /* Prevent label text from wrapping */
-    }
-    .row .colon { 
-      text-align: center; 
-    }
-    .row .value { 
-      /* Allow value text to wrap by default */
-      white-space: normal; 
-    }
+        /* Make only the print section and its children visible */
+        #print-section, #print-section * {
+          visibility: visible;
+        }
 
-    /* Default row styling for the top section */
-    .row.default .label { 
-      width: auto; 
-    }
-    .row.default .colon { 
-      width: auto; 
-      padding: 0 4px; 
-    }
-    .row.default .value { 
-      padding-left: 0; 
-      flex: 1; 
-      white-space: nowrap; /* Prevent wrapping for header values */
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+        /* Position the print section at the top of the page */
+        #print-section {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          border: none !important;
+          box-shadow: none !important;
+          background: white !important; /* Ensure background is white for printing */
+        }
 
-    /* Tighter row styling for date/time/weight section to align colons */
-    .row.tight { 
-      width: 100%; 
-    }
-    .row.tight .label { 
-      width: 115px; /* Fixed width to align colons */
-    }
-    .row.tight .colon { 
-      width: 10px; 
-    }
-    .row.tight .value { 
-      padding-left: 28px; /* Space after the colon */
-      flex: 1; 
-    }
-    /* Custom style for larger form controls */
-    .form-control-lg {
-        font-size: 25px !important;
-        padding: 0.5rem !important;
-    }
-    .tab-button.active {
-        border-bottom: 2px solid #3b82f6;
-        color: #3b82f6;
-    }
-  </style>
+        /* Hide elements specifically marked as no-print */
+        .no-print {
+          display: none !important;
+        }
+
+        /* Ensure text is readable when printed */
+        #print-section * {
+          color: black !important;
+          background-color: transparent !important;
+          text-shadow: none !important;
+        }
+
+        /* Adjust border colors for better visibility on paper */
+        #print-section .border-slate-700,
+        #print-section .border-slate-600,
+        #print-section .border-dashed {
+          border-color: #555 !important;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0"
+  }
+}
+</script>
 </head>
-<body class="bg-gray-100 text-base leading-tight">
-  <div class="w-full max-w-4xl mx-auto p-4">
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module">
+    import React, { useState, useCallback, useMemo, useEffect } from 'react';
+    import ReactDOM from 'react-dom/client';
+    import { GoogleGenAI, Type } from "@google/genai";
+
+    // --- FROM types.ts ---
+    /*
+    interface TruckBed {
+        name: string;
+        length: number;
+    }
+
+    interface CalculationResult {
+        totalLengthMm: number;
+        recommendedBed: TruckBed | null;
+        errorMessage: string | null;
+    }
+
+    interface CustomerEquipment {
+        customerName: string;
+        equipment: string;
+    }
+    */
+
+    // --- FROM constants.ts ---
+    const SEPARATOR_WIDTH_MM = 76.2; // 3 inches in mm
+    const TRUCK_BEDS = [
+        { name: '3.0 เมตร', length: 3000 },
+        { name: '3.5 เมตร', length: 3500 }
+    ].sort((a, b) => a.length - b.length); // Sort by length ascending, important for finding the smallest suitable bed
+
+    // --- FROM components/icons.tsx ---
+    const WidthIcon = ({ className = "w-6 h-6" }) => (
+      React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 },
+        React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" })
+      )
+    );
+
+    const CountIcon = ({ className = "w-6 h-6" }) => (
+      React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 },
+        React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" })
+      )
+    );
+
+    const SeparatorIcon = ({ className = "w-6 h-6" }) => (
+      React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 },
+        React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M16 8v8m-8-8v8m4-7.5 .01 0h-.01" }),
+        React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M21 12a9 9 0 11-18 0 9 9 0 0118 0z" })
+      )
+    );
+
+    const TruckIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "2" },
+            React.createElement('path', { d: "M9 17a2 2 0 10-4 0 2 2 0 004 0zM19 17a2 2 0 10-4 0 2 2 0 004 0z" }),
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8l2-2z" }),
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M13 16h2a1 1 0 001-1V7a1 1 0 00-1-1h-1" })
+        )
+    );
+
+    const TrashIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 },
+          React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" })
+        )
+    );
+
+    const PlusIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", strokeWidth: 1.5, stroke: "currentColor" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M12 4.5v15m7.5-7.5h-15" })
+        )
+    );
+
+    const ImageIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", strokeWidth: 1.5, stroke: "currentColor" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" })
+        )
+    );
+
+    const WeightIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", strokeWidth: 1.5, stroke: "currentColor" } ,
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.153.53m-13.5-1.54l-2.62 10.726A2.25 2.25 0 004.5 19.5a5.988 5.988 0 012.153.53m13.5-1.54-.616-2.515a1.125 1.125 0 00-1.09-.825h-5.52a1.125 1.125 0 00-1.09.825L5.25 17.5m13.5-1.54l.453-1.848a3.375 3.375 0 00-3.09-3.539h-6.214a3.375 3.375 0 00-3.09 3.539l.453 1.848m13.5-1.54a48.416 48.416 0 00-13.5 0" })
+        )
+    );
+
+    const UserIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" })
+        )
+    );
+
+    const DatabaseIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", strokeWidth: 1.5, stroke: "currentColor" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M4.098 11.902c.048-.05.097-.1.146-.15l7.5-7.5a1.5 1.5 0 012.122 0l7.5 7.5c.05.048.097.098.146.15M4 12a1.5 1.5 0 01-1.5-1.5V6.75a1.5 1.5 0 011.5-1.5h16.5a1.5 1.5 0 011.5 1.5v3.75a1.5 1.5 0 01-1.5 1.5M4 12v6.75a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5V12" })
+        )
+    );
+
+    const SaveIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", strokeWidth: 1.5, stroke: "currentColor" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M3 16.5v-11a2 2 0 012-2h8l4 4v9a2 2 0 01-2 2H5a2 2 0 01-2-2zM7 14.5a1 1 0 100-2 1 1 0 000 2zM5 10.5a1 1 0 011-1h6a1 1 0 011 1v1a1 1 0 01-1 1H6a1 1 0 01-1-1v-1z" })
+        )
+    );
+
+    const LinkIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", strokeWidth: 1.5, stroke: "currentColor" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" })
+        )
+    );
+
+    const CalculatorIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", strokeWidth: "1.5", stroke: "currentColor" },
+          React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 3h.008v.008H8.25v-.008zm0 3h.008v.008H8.25v-.008zm3-6h.008v.008H11.25v-.008zm0 3h.008v.008H11.25v-.008zm0 3h.008v.008H11.25v-.008zm3-6h.008v.008H14.25v-.008zm0 3h.008v.008H14.25v-.008zM4.5 21V5.25A2.25 2.25 0 016.75 3h10.5a2.25 2.25 0 012.25 2.25v15.75Z" })
+        )
+    );
+
+    const SearchIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" })
+        )
+    );
+
+    const PrinterIcon = ({ className = "w-6 h-6" }) => (
+        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: className, fill: "none", viewBox: "0 0 24 24", strokeWidth: 1.5, stroke: "currentColor" },
+          React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6 3.129M6.72 13.829L6 3.129m0 0L6.035 3.03A2.25 2.25 0 0 1 7.932 2.25h8.134a2.25 2.25 0 0 1 1.897.78A42.415 42.415 0 0 1 18 3.129m-12 0h12m-12 0L6 13.829m0 0l6 6 6-6m6 6V7.5a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 7.5v12a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 19.5m-18 0h18" })
+        )
+    );
+
+
+    // --- FROM components/InputField.tsx ---
+    const InputField = ({ id, label, value, onChange, icon, placeholder, unit, subtext, type = "number" }) => (
+        React.createElement('div', null,
+            React.createElement('label', { htmlFor: id, className: "block text-sm font-medium text-slate-300 mb-1" }, label),
+            subtext && React.createElement('p', { className: "text-xs text-sky-400 mb-2" }, subtext),
+            React.createElement('div', { className: "relative" },
+                React.createElement('div', { className: "pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3" },
+                    React.createElement('span', { className: "text-slate-500" }, icon)
+                ),
+                React.createElement('input', {
+                    type: type,
+                    id: id,
+                    name: id,
+                    value: value,
+                    onChange: onChange,
+                    className: "block w-full rounded-md border-0 bg-slate-800/80 py-3 pl-12 pr-16 text-white shadow-sm ring-1 ring-inset ring-slate-700 placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all",
+                    placeholder: placeholder,
+                    min: type === "number" ? "0" : undefined,
+                    step: type === "number" ? "any" : undefined
+                }),
+                unit && React.createElement('div', { className: "pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" },
+                    React.createElement('span', { className: "text-slate-500 sm:text-sm" }, unit)
+                )
+            )
+        )
+    );
+
+    // --- FROM components/CustomerDbManager.tsx ---
+    const equipmentOptions = ['แคร่', 'ซัพพอต', 'แพ็คลังไม้'];
+
+    const CustomerDbManager = ({
+        customerEquipmentDb,
+        tempScriptUrl,
+        isDbLoading,
+        dbError,
+        hasValidUrl,
+        setTempScriptUrl,
+        onSaveUrl,
+        onAddCustomer,
+        onRemoveCustomer
+    }) => {
+        const [newCustomer, setNewCustomer] = useState({ name: '', equipment: '' });
+        const [searchQuery, setSearchQuery] = useState('');
+
+        const handleAddClick = async () => {
+            const success = await onAddCustomer(newCustomer);
+            if (success) {
+                setNewCustomer({ name: '', equipment: '' });
+            }
+        };
+
+        const filteredCustomers = customerEquipmentDb.filter(c =>
+            c.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        
+        return (
+            React.createElement('div', { className: "animate-fade-in space-y-6" },
+                React.createElement('div', null,
+                    React.createElement('h2', { className: "text-xl font-bold text-slate-200 mb-4" }, "จัดการฐานข้อมูลลูกค้า (Google Sheet)"),
+                    React.createElement('div', { className: "p-4 bg-slate-800/50 border border-slate-700 rounded-lg space-y-4" },
+                        React.createElement('h3', { className: "font-semibold text-slate-200" }, "ตั้งค่าการเชื่อมต่อ"),
+                        React.createElement('div', { className: 'flex items-end gap-2' },
+                            React.createElement('div', { className: 'flex-grow' },
+                                React.createElement(InputField, {
+                                    id: "scriptUrl",
+                                    label: "Google Apps Script URL",
+                                    value: tempScriptUrl,
+                                    onChange: (e) => setTempScriptUrl(e.target.value),
+                                    icon: React.createElement(LinkIcon, { className: "w-5 h-5" }),
+                                    placeholder: "วาง URL ที่คัดลอกมาที่นี่",
+                                    type: "text"
+                                })
+                            ),
+                            React.createElement('button', { onClick: onSaveUrl, className: "px-4 py-3 bg-sky-600 text-white font-semibold rounded-md hover:bg-sky-500 transition-colors flex-shrink-0", 'aria-label': "บันทึก URL" },
+                                React.createElement(SaveIcon, { className: "w-5 h-5" })
+                            )
+                        ),
+                        dbError && React.createElement('p', { className: "text-sm text-red-400 mt-2" }, dbError)
+                    )
+                ),
+                React.createElement('div', null,
+                    React.createElement('h3', { className: "font-semibold text-slate-200 mb-2" }, "เพิ่มลูกค้าใหม่"),
+                    React.createElement('div', { className: "grid grid-cols-1 sm:grid-cols-2 gap-4 items-end" },
+                        React.createElement(InputField, {
+                            id: "newCustomerName",
+                            label: "ชื่อลูกค้า",
+                            value: newCustomer.name,
+                            onChange: (e) => setNewCustomer({ ...newCustomer, name: e.target.value }),
+                            icon: React.createElement(UserIcon, { className: "w-5 h-5" }),
+                            placeholder: "เช่น บริษัท แคนนอน บอล",
+                            type: "text"
+                        }),
+                        React.createElement('div', null,
+                            React.createElement('label', { htmlFor: "newCustomerEquipment", className: "block text-sm font-medium text-slate-300 mb-1" }, "อุปกรณ์ที่ใช้"),
+                            React.createElement('div', { className: "relative" },
+                                React.createElement('div', { className: "pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3" },
+                                    React.createElement('span', { className: "text-slate-500" }, React.createElement(TruckIcon, { className: "w-5 h-5" }))
+                                ),
+                                React.createElement('select', {
+                                    id: "newCustomerEquipment",
+                                    value: newCustomer.equipment,
+                                    onChange: (e) => setNewCustomer({ ...newCustomer, equipment: e.target.value }),
+                                    className: "block w-full appearance-none rounded-md border-0 bg-slate-800/80 py-3 pl-12 pr-10 text-white shadow-sm ring-1 ring-inset ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all"
+                                },
+                                    React.createElement('option', { value: "", disabled: true }, "เลือกอุปกรณ์"),
+                                    equipmentOptions.map(opt => React.createElement('option', { key: opt, value: opt }, opt))
+                                ),
+                                React.createElement('div', { className: "pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" },
+                                    React.createElement('svg', { className: "h-5 w-5 text-gray-400", xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 20 20", fill: "currentColor", 'aria-hidden': "true" },
+                                        React.createElement('path', { fillRule: "evenodd", d: "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z", clipRule: "evenodd" })
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    React.createElement('button', { onClick: handleAddClick, disabled: !hasValidUrl || isDbLoading || !newCustomer.name || !newCustomer.equipment, className: "mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-sky-600 text-white font-semibold rounded-md hover:bg-sky-500 transition-colors disabled:bg-slate-600 disabled:cursor-not-allowed" },
+                        isDbLoading ? React.createElement('div', { className: "w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin" }) : React.createElement(PlusIcon, { className: "w-5 h-5" }),
+                        "เพิ่มลูกค้า"
+                    )
+                ),
+                React.createElement('div', null,
+                    React.createElement('h3', { className: "font-semibold text-slate-200 mb-2" }, "รายชื่อลูกค้าในระบบ"),
+                    React.createElement('div', { className: "mb-4" },
+                        React.createElement(InputField, {
+                            id: "customerSearch",
+                            label: "ค้นหารายชื่อลูกค้า",
+                            value: searchQuery,
+                            onChange: (e) => setSearchQuery(e.target.value),
+                            icon: React.createElement(SearchIcon, { className: "w-5 h-5" }),
+                            placeholder: "พิมพ์ชื่อเพื่อค้นหา...",
+                            type: "text"
+                        })
+                    ),
+                    React.createElement('div', { className: "space-y-2 max-h-60 overflow-y-auto bg-slate-800/50 border border-slate-700 rounded-lg p-2" },
+                        isDbLoading && React.createElement('p', { className: "text-center text-sm text-slate-500 py-4" }, "กำลังโหลดข้อมูล..."),
+                        !isDbLoading && filteredCustomers.length > 0 && filteredCustomers.map(c => (
+                            React.createElement('div', { key: c.customerName, className: "flex items-center justify-between bg-slate-900/50 p-3 rounded-md" },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-slate-300 font-medium" }, c.customerName),
+                                    React.createElement('p', { className: "text-sm text-slate-400" }, "อุปกรณ์: ", React.createElement('span', { className: "font-semibold text-amber-400" }, c.equipment))
+                                ),
+                                React.createElement('button', { onClick: () => onRemoveCustomer(c.customerName), disabled: isDbLoading, className: "text-slate-500 hover:text-red-400 transition-colors p-1 rounded-full disabled:text-slate-700 disabled:cursor-not-allowed", 'aria-label': "ลบลูกค้า" },
+                                    React.createElement(TrashIcon, { className: "w-5 h-5" })
+                                )
+                            )
+                        )),
+                        !isDbLoading && customerEquipmentDb.length === 0 && React.createElement('p', { className: "text-center text-sm text-slate-500 py-4" }, hasValidUrl ? 'ยังไม่มีข้อมูลลูกค้า' : 'กรุณาตั้งค่า URL เพื่อเริ่มใช้งาน'),
+                        !isDbLoading && customerEquipmentDb.length > 0 && filteredCustomers.length === 0 && React.createElement('p', { className: "text-center text-sm text-slate-500 py-4" }, "ไม่พบลูกค้าที่ตรงกับการค้นหา")
+                    )
+                )
+            )
+        );
+    };
     
-    <!-- Creator View -->
-    <div id="creator-view">
-        <!-- Control Panel -->
-        <div class="no-print bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
-            <h3 class="text-lg font-bold mb-4 text-gray-700">เครื่องมือสร้างใบชั่ง</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Data Input Area -->
-                <div>
-                    <label for="paste-area" class="block text-lg font-medium text-gray-700 mb-1">1. วางข้อมูลที่คัดลอกมาที่นี่:</label>
-                    <textarea id="paste-area" rows="8" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="วางข้อมูลจาก Excel ที่นี่ โปรแกรมจะดึงข้อมูลที่จำเป็นให้เอง"></textarea>
-                    <div class="mt-2 grid grid-cols-3 gap-2">
-                        <button id="paste-data-btn" class="bg-green-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                          วางข้อมูล
-                        </button>
-                        <button id="process-data-btn" class="bg-blue-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                          ประมวลผลข้อมูล
-                        </button>
-                        <button id="clear-data-btn" class="bg-red-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                          ลบข้อมูล
-                        </button>
-                    </div>
-                </div>
-                <!-- Manual Inputs & Actions -->
-                <div class="space-y-4">
-                     <div>
-                        <label for="do-select" class="block text-lg font-medium text-gray-700">2. เลือกเลขที่ DO:</label>
-                        <select id="do-select" class="form-control-lg mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" disabled>
-                            <option>--- กรุณาประมวลผลข้อมูลก่อน ---</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="product-select" class="block text-lg font-medium text-gray-700">3. เลือกสินค้า:</label>
-                        <select id="product-select" class="form-control-lg mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                            <option>เหล็กม้วนสลิต</option>
-                            <option>เหล็กม้วนสลิต + เศษรังผึ้ง</option>
-                            <option>เศษคืนลูกค้า</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="net-weight-input" class="block text-lg font-medium text-gray-700">4. ระบุน้ำหนักสุทธิ (กก.):</label>
-                        <input type="number" id="net-weight-input" class="form-control-lg mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น 2408">
-                    </div>
-                    <div class="no-print">
-                      <label for="image-upload" class="block text-lg font-medium text-gray-700">5. อัพโหลดรูปโลโก้/รูปประกอบ (ไม่บันทึกไฟล์):</label>
-                      <input type="file" id="image-upload" accept="image/*" class="mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm" />
-                      <div class="mt-2 flex items-center gap-2">
-                        <button id="clear-image-btn" class="bg-gray-600 text-white px-4 py-2 text-lg font-bold rounded-md hover:bg-gray-700 focus:outline-none">ลบรูป</button>
-                        <span class="text-sm text-gray-500">รูปจะแสดงในบัตรชั่งเหนือหัวกระดาษ</span>
-                      </div>
-                    </div>
-                    <div class="flex justify-end gap-2 items-center no-print">
-                      <a href="https://tle125.github.io/Equipment-calculation-system/" target="_blank" class="bg-indigo-600 text-white px-4 py-2 text-lg font-bold rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" title="เปิดแอพ ระบบคำนวนอุปกรณ์">ระบบคำนวนอุปกรณ์</a>
-                      <button id="print-btn" class="bg-green-600 text-white px-6 py-2 text-2xl font-bold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                        พิมพ์บัตรชั่ง
-                      </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- The main content area to be printed -->
-        <div id="printable-area" class="w-full px-1 py-2 bg-white shadow-lg">
-          <!-- Uploaded Image (will be printed) -->
-          <div class="flex justify-end"><img id="uploaded-image" alt="รูปอัพโหลด" class="h-16 w-auto" style="max-width:200px; object-fit:contain;" /></div>
-          <!-- Header section -->
-          <div class="text-center">
-            <h1 class="text-[35px] font-extrabold">บริษัท ทีเอ็มที สตีล จำกัด (มหาชน)</h1>
-            <p class="text-[19px]">สาขาวังน้อย : 332-333 หมู่ที่5 ถนนพหลโยธิน ต.ลำไทร อ.วังน้อย พระนครศรีอยุธยา 13170</p>
-          </div>
-          <!-- Document title -->
-          <div class="text-center mt-2">
-            <h2 class="text-[25px] font-bold">ใบชั่งน้ำหนัก</h2>
-          </div>
-          <!-- Top info section with default layout -->
-          <div class="grid grid-cols-2 gap-x-4 mt-2 text-[24px]">
-            <div class="space-y-1">
-              <div class="row default"><span class="label">เลขที่บัตร</span><span class="colon">:</span><span id="ticket-id-val" class="value"></span></div>
-              <div class="row default"><span class="label">ทะเบียนรถ</span><span class="colon">:</span><span id="vehicle-id-val" class="value"></span></div>
-            </div>
-            <div class="space-y-1">
-              <div class="row default"><span class="label">คู่ค้า</span><span class="colon">:</span><span id="partner-name-val" class="value"></span></div>
-              <div class="row default"><span class="label">สินค้า</span><span class="colon">:</span><span id="product-name-val" class="value"></span></div>
-            </div>
-          </div>
-          <hr class="border-t border-dashed border-black my-2" />
-          <!-- Weight details section headers -->
-          <div class="grid grid-cols-2 gap-x-6 text-[24px]">
-              <h3 class="font-bold text-center">รถเข้า</h3>
-              <h3 class="font-bold text-center">รถออก</h3>
-          </div>
-          <hr class="border-t border-dashed border-black my-2" />
-          <!-- Weight details section data -->
-          <div class="grid grid-cols-2 gap-x-6 text-[24px]">
-            <div class="space-y-1">
-              <div class="row tight"><span class="label">วันที่ชั่งเข้า</span><span class="colon">:</span><span id="date-in-val" class="value"></span></div>
-              <div class="row tight"><span class="label">เวลาชั่งเข้า</span><span class="colon">:</span><span id="time-in-val" class="value"></span></div>
-              <div class="row tight"><span class="label">น้ำหนักรถเข้า</span><span class="colon">:</span><span class="value">- กก.</span></div>
-              <div class="row tight"><span class="label">น้ำหนักตามบิล</span><span class="colon">:</span><span class="value">- กก.</span></div>
-              <div class="row tight"><span class="label">น้ำหนักต่าง</span><span class="colon">:</span><span class="value">- กก.</span></div>
-            </div>
-            <div class="space-y-1">
-              <div class="row tight"><span class="label">วันที่ชั่งออก</span><span class="colon">:</span><span id="date-out-val" class="value"></span></div>
-              <div class="row tight"><span class="label">เวลาชั่งออก</span><span class="colon">:</span><span id="time-out-val" class="value"></span></div>
-              <div class="row tight"><span class="label">น้ำหนักรถเข้า</span><span class="colon">:</span><span class="value">- กก.</span></div>
-              <div class="row tight"><span class="label">น้ำหนักรถออก</span><span class="colon">:</span><span class="value">- กก.</span></div>
-              <div class="row tight"><span class="label">น้ำหนักสุทธิ</span><span class="colon">:</span><span id="net-weight-val" class="value"></span></div>
-            </div>
-          </div>
-          <hr class="border-t border-dashed border-black my-2" />
-          <!-- Notes section -->
-          <div class="mt-2 text-[24px]">
-            <div class="row tight"><span class="label">หมายเหตุ</span><span class="colon">:</span><span id="notes-val" class="value"></span></div>
-          </div>
-          <!-- Signature section -->
-          <div class="mt-1 text-right text-[24px]">
-            <p>พนักงานชั่งน้ำหนัก........................................</p>
-          </div>
-        </div>
-    </div>
+    // --- UTILITY ---
+    const fileToGenerativePart = async (file) => {
+        const base64EncodedDataPromise = new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        });
+        return {
+            inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
+        };
+    };
 
-    <!-- Custom Alert Modal -->
-    <div id="custom-alert" class="no-print hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-1/3">
-            <p id="custom-alert-message" class="text-2xl mb-6"></p>
-            <button id="custom-alert-close" class="bg-blue-500 text-white px-6 py-2 rounded-md text-xl hover:bg-blue-600">ตกลง</button>
-        </div>
-    </div>
+    // --- FROM components/Calculator.tsx ---
+    const VisualResult = ({ result }) => {
+        const { totalLengthMm, recommendedBed } = result;
+        const displayBed = recommendedBed || TRUCK_BEDS[TRUCK_BEDS.length - 1];
+        const percentage = displayBed ? Math.min((totalLengthMm / displayBed.length) * 100, 150) : 0;
+        const isOverloaded = recommendedBed === null && totalLengthMm > 0;
 
-  </div>
+        return (
+            React.createElement('div', { className: "mt-6" },
+                React.createElement('h3', { className: "text-lg font-semibold text-slate-200" }, "ภาพรวมการวางสินค้า"),
+                React.createElement('div', { className: "mt-3 bg-slate-800 rounded-lg p-4" },
+                    React.createElement('div', { className: "flex justify-between items-center text-xs text-slate-400 mb-2" },
+                        React.createElement('span', null, "0 ม."),
+                        React.createElement('span', null, `${displayBed.name} (${displayBed.length / 1000} ม.)`)
+                    ),
+                    React.createElement('div', { className: "relative w-full h-8 bg-slate-700 rounded-full overflow-hidden" },
+                        React.createElement('div', {
+                            className: `absolute top-0 left-0 h-full rounded-full transition-all duration-500 ease-out ${isOverloaded ? 'bg-red-500' : 'bg-sky-500'}`,
+                            style: { width: `${isOverloaded ? 100 : percentage}%` }
+                        }),
+                        React.createElement('div', { className: "absolute inset-0 flex items-center justify-center" },
+                            React.createElement('span', { className: "font-bold text-sm text-white drop-shadow-md" },
+                                `${(totalLengthMm / 1000).toFixed(2)} ม.`
+                            )
+                        )
+                    )
+                )
+            )
+        );
+    };
 
-  <script>
-    // --- Main App Logic ---
-    let parsedDataStore = [];
+    const Calculator = ({ customerEquipmentDb }) => {
+        const [items, setItems] = useState([{ id: Date.now(), width: '', count: '', weight: '' }]);
+        const [separatorCount, setSeparatorCount] = useState('');
+        const [suggestedSeparators, setSuggestedSeparators] = useState(null);
+        const [result, setResult] = useState(null);
+        const [isProcessingImage, setIsProcessingImage] = useState(false);
+        const [imageError, setImageError] = useState(null);
+        const [isDragging, setIsDragging] = useState(false);
+        const [equipmentUsage, setEquipmentUsage] = useState([]);
 
-    // Custom Alert Logic
-    const customAlert = document.getElementById('custom-alert');
-    const customAlertMessage = document.getElementById('custom-alert-message');
-    const customAlertClose = document.getElementById('custom-alert-close');
+        const handleCalculate = useCallback((currentItems, currentSeparators) => {
+            let totalItemLengthMm = 0;
+            let hasError = false;
 
-    function showAlert(message) {
-        customAlertMessage.textContent = message;
-        customAlert.classList.remove('hidden');
-    }
+            if (currentItems.length === 0 || currentItems.every(i => !i.width || !i.count)) {
+                setResult(null);
+                return;
+            }
 
-    customAlertClose.addEventListener('click', () => {
-        customAlert.classList.add('hidden');
-    });
-
-    function printSlip() {
-        const vehicleId = document.getElementById('vehicle-id-val').textContent;
-        const partnerName = document.getElementById('partner-name-val').textContent;
-        const netWeight = document.getElementById('net-weight-input').value;
-
-        if (!vehicleId || !partnerName) {
-            showAlert("กรุณาเลือกข้อมูล DO ก่อนพิมพ์");
-            return;
-        }
-        if (!netWeight || parseFloat(netWeight) <= 0) {
-            showAlert("กรุณาระบุน้ำหนักสุทธิก่อนพิมพ์");
-            return;
-        }
-        
-        // Generate a new ticket number for this print
-        generateTicketNumber();
-        
-        // Update date and time to the moment of printing
-        updateDateTime();
-
-        // Use a short timeout to ensure the UI updates before the print dialog opens
-        setTimeout(() => {
-            window.print();
-        }, 100);
-    }
-    
-    function updateDateTime() {
-      const now = new Date();
-      const dateOptions = { day: '2-digit', month: '2-digit', year: 'numeric', calendar: 'buddhist' };
-      const formattedDate = new Intl.DateTimeFormat('th-TH', dateOptions).format(now).replace(/\//g, '/');
-      const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-      const formattedTime = new Intl.DateTimeFormat('en-GB', timeOptions).format(now);
-      
-      document.getElementById('date-in-val').textContent = formattedDate;
-      document.getElementById('time-in-val').textContent = formattedTime;
-      document.getElementById('date-out-val').textContent = formattedDate;
-      document.getElementById('time-out-val').textContent = formattedTime;
-    }
-
-    function generateTicketNumber() {
-        const now = new Date();
-        const day = now.getDate().toString().padStart(2, '0');
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        
-        // Create a key for today's date
-        const dateKey = `ticket_counter_${day}${month}`;
-        
-        // Get today's counter from localStorage, default to 0
-        let counter = parseInt(localStorage.getItem(dateKey) || '0');
-        
-        // Increment counter for this ticket
-        counter++;
-        
-        // Save updated counter to localStorage
-        localStorage.setItem(dateKey, counter.toString());
-        
-        // Format: วันที่+เดือน+ลำดับ (e.g., 25120001 for 25 Dec, ticket #1)
-        const formattedTicket = `${day}${month}${counter.toString().padStart(4, '0')}`;
-        document.getElementById('ticket-id-val').textContent = formattedTicket;
-    }
-
-    function processPastedData() {
-      const pasteArea = document.getElementById('paste-area');
-      const data = pasteArea.value.trim();
-      const doSelect = document.getElementById('do-select');
-
-      if (!data) {
-        showAlert('กรุณาวางข้อมูลก่อน');
-        return;
-      }
-      
-      doSelect.innerHTML = '';
-      const lines = data.split('\n');
-      const doDataMap = new Map();
-
-      lines.forEach(line => {
-        const parts = line.split('\t');
-        if (parts.length >= 6 && parts[0].trim() !== '' && parts[4].trim() !== '') {
-          const doNumber = parts[0].trim();
-          const material = parts[4].trim();
-
-          if (!doDataMap.has(doNumber)) {
-            const vehicleId = parts[1].trim();
-            const partnerName = parts[5].trim();
-            doDataMap.set(doNumber, {
-              do: doNumber,
-              vehicle: vehicleId,
-              partner: partnerName,
-              materials: new Set()
-            });
-          }
-          doDataMap.get(doNumber).materials.add(material);
-        }
-      });
-
-      parsedDataStore = Array.from(doDataMap.values());
-
-      if (parsedDataStore.length === 0) {
-        doSelect.innerHTML = '<option>ไม่พบข้อมูล DO ที่ถูกต้อง</option>';
-        doSelect.disabled = true;
-        return;
-      }
-      
-      doSelect.disabled = false;
-      const defaultOption = document.createElement('option');
-      defaultOption.textContent = '-- เลือก DO --';
-      defaultOption.value = '';
-      doSelect.appendChild(defaultOption);
-
-      parsedDataStore.forEach(entry => {
-        const option = document.createElement('option');
-        option.value = entry.do;
-        option.textContent = `${entry.do} (${entry.partner})`; 
-        doSelect.appendChild(option);
-      });
-      
-      updateFormOnDoSelect();
-    }
-    
-    function updateFormOnDoSelect() {
-        const selectedDo = document.getElementById('do-select').value;
-        const vehicleIdEl = document.getElementById('vehicle-id-val');
-        const partnerNameEl = document.getElementById('partner-name-val');
-        const notesEl = document.getElementById('notes-val');
-        const productSelect = document.getElementById('product-select');
-        const netWeightInput = document.getElementById('net-weight-input');
-
-        // Clear net weight input when DO changes
-        netWeightInput.value = '';
-        updateNetWeight();
-
-        if (selectedDo) {
-            const entry = parsedDataStore.find(item => item.do === selectedDo);
-            if (entry) {
-                vehicleIdEl.textContent = entry.vehicle;
-                partnerNameEl.textContent = entry.partner;
-                notesEl.textContent = `DO NO. ${entry.do}`;
-
-                const hasSlit = entry.materials.has('2SLIT');
-                const hasScrap = entry.materials.has('2SCRAP-W');
-
-                if (hasSlit && hasScrap) {
-                    productSelect.value = 'เหล็กม้วนสลิต + เศษรังผึ้ง';
-                } else if (hasSlit) {
-                    productSelect.value = 'เหล็กม้วนสลิต';
-                } else if (hasScrap) {
-                    productSelect.value = 'เศษคืนลูกค้า';
+            for (const item of currentItems) {
+                const width = parseFloat(item.width);
+                const count = parseInt(item.count, 10);
+                if (isNaN(width) || isNaN(count) || width <= 0 || count <= 0) {
+                    hasError = true;
+                    break;
                 }
-                updateProduct();
+                totalItemLengthMm += width * count;
             }
-        } else {
-            vehicleIdEl.textContent = '';
-            partnerNameEl.textContent = '';
-            notesEl.textContent = '';
-            productSelect.selectedIndex = 0;
-            updateProduct();
-        }
-    }
-
-    function updateProduct() {
-        const selectedProduct = document.getElementById('product-select').value;
-        document.getElementById('product-name-val').textContent = selectedProduct;
-    }
-
-    function updateNetWeight() {
-        const weightInput = document.getElementById('net-weight-input').value;
-        const netWeight = parseFloat(weightInput) || 0;
-        document.getElementById('net-weight-val').textContent = `${netWeight.toLocaleString('en-US')} กก.`;
-    }
-
-    function clearData() {
-        // Clear the paste area
-        document.getElementById('paste-area').value = '';
-        
-        // Reset the DO select dropdown
-        const doSelect = document.getElementById('do-select');
-        doSelect.innerHTML = '<option>--- กรุณาประมวลผลข้อมูลก่อน ---</option>';
-        doSelect.disabled = true;
-        
-        // Reset product select to first option
-        document.getElementById('product-select').selectedIndex = 0;
-        
-        // Clear net weight input
-        document.getElementById('net-weight-input').value = '';
-        
-        // Clear all display values
-        document.getElementById('vehicle-id-val').textContent = '';
-        document.getElementById('partner-name-val').textContent = '';
-        document.getElementById('notes-val').textContent = '';
-        
-        // Reset product and net weight displays
-        updateProduct();
-        updateNetWeight();
-        
-        // Clear the parsed data store
-        parsedDataStore = [];
-        
-        // Clear uploaded image
-        const uploadedImg = document.getElementById('uploaded-image');
-        if (uploadedImg) {
-          if (uploadedImg.dataset.objUrl) {
-            URL.revokeObjectURL(uploadedImg.dataset.objUrl);
-            delete uploadedImg.dataset.objUrl;
-          }
-          uploadedImg.src = '';
-        }
-        
-        showAlert('ลบข้อมูลเรียบร้อยแล้ว');
-    }
-
-    async function pasteData() {
-        try {
-            // Check if clipboard API is available
-            if (!navigator.clipboard) {
-                showAlert('เบราว์เซอร์ไม่รองรับการวางข้อมูลอัตโนมัติ กรุณาใช้ Ctrl+V แทน');
+            
+            const separators = currentSeparators.trim() === '' ? 0 : parseInt(currentSeparators, 10);
+            if (hasError || isNaN(separators) || separators < 0) {
+                setResult({
+                    totalLengthMm: 0,
+                    recommendedBed: null,
+                    errorMessage: 'กรุณากรอกข้อมูลสินค้า (ความกว้าง, จำนวน) ให้ถูกต้อง'
+                });
                 return;
             }
-            
-            // Read text from clipboard
-            const clipboardText = await navigator.clipboard.readText();
-            
-            if (clipboardText.trim() === '') {
-                showAlert('ไม่พบข้อมูลในคลิปบอร์ด');
-                return;
+
+            const totalLengthMm = totalItemLengthMm + (separators * SEPARATOR_WIDTH_MM);
+            const suitableBed = TRUCK_BEDS.find(bed => bed.length >= totalLengthMm);
+
+            if (suitableBed) {
+                setResult({ totalLengthMm, recommendedBed: suitableBed, errorMessage: null });
+            } else {
+                setResult({
+                    totalLengthMm,
+                    recommendedBed: null,
+                    errorMessage: `ความยาวรวม ${(totalLengthMm / 1000).toFixed(2)} ม. เกินขนาดแคร่ที่ใหญ่ที่สุด (${TRUCK_BEDS[TRUCK_BEDS.length-1].name})`
+                });
             }
-            
-            // Paste the data into the textarea
-            const pasteArea = document.getElementById('paste-area');
-            pasteArea.value = clipboardText;
-            
-            showAlert('วางข้อมูลเรียบร้อยแล้ว');
-            
-        } catch (error) {
-            // Handle permission denied or other errors
-            showAlert('ไม่สามารถเข้าถึงคลิปบอร์ดได้ กรุณาใช้ Ctrl+V แทน');
-        }
-    }
+        }, []);
+        
+        useEffect(() => {
+            const handler = setTimeout(() => {
+                if (items.some(item => item.width && item.count)) {
+                     handleCalculate(items, separatorCount);
+                } else {
+                     setResult(null);
+                }
+            }, 500);
+            return () => clearTimeout(handler);
+        }, [items, separatorCount, handleCalculate]);
 
-    // --- Initialization ---
-    function initialize() {
-        document.getElementById('paste-data-btn').addEventListener('click', pasteData);
-        document.getElementById('process-data-btn').addEventListener('click', processPastedData);
-        document.getElementById('clear-data-btn').addEventListener('click', clearData);
-        document.getElementById('print-btn').addEventListener('click', printSlip);
-        document.getElementById('do-select').addEventListener('change', updateFormOnDoSelect);
-        document.getElementById('product-select').addEventListener('change', updateProduct);
-        document.getElementById('net-weight-input').addEventListener('input', updateNetWeight);
+        useEffect(() => {
+            const grandTotalWeight = items.reduce((total, item) => {
+                const weight = parseFloat(item.weight);
+                return !isNaN(weight) && weight > 0 ? total + weight : total;
+            }, 0);
 
-        // Image upload handlers
-        const imageInput = document.getElementById('image-upload');
-        const uploadedImg = document.getElementById('uploaded-image');
-        const clearImageBtn = document.getElementById('clear-image-btn');
-        if (imageInput && uploadedImg) {
-          imageInput.addEventListener('change', () => {
-            const file = imageInput.files && imageInput.files[0];
+            if (grandTotalWeight > 0) {
+                const suggestion = Math.ceil(grandTotalWeight / 1650);
+                setSuggestedSeparators(suggestion);
+                setSeparatorCount(String(suggestion));
+            } else {
+                setSuggestedSeparators(null);
+            }
+        }, [items]);
+
+        const handleImageChange = async (file) => {
             if (!file) return;
-            // Revoke old URL if exists
-            if (uploadedImg.dataset.objUrl) {
-              URL.revokeObjectURL(uploadedImg.dataset.objUrl);
+
+            setIsProcessingImage(true);
+            setImageError(null);
+            setEquipmentUsage([]);
+            setResult(null);
+
+            try {
+                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                const imagePart = await fileToGenerativePart(file);
+                const response = await ai.models.generateContent({
+                    model: "gemini-2.5-flash",
+                    contents: {
+                        parts: [
+                            { text: "Analyze the table in the provided image which lists steel products. Group the rows by 'Name' and 'Description(from DO)' to identify distinct products. For each distinct product, do the following: 1. Extract the customer's name from the 'Name' column into a 'customerName' field. 2. From the 'Description(from DO)' column, infer the equipment type. 'เหล็กม้วนสลิต' (steel coil) implies 'แคร่'. Other possibilities are 'ซัพพอต' or 'แพ็คลังไม้'. Put this in an 'equipment' field. 3. From the 'Description(from DO)' column, extract the product's width in millimeters. For example, in '1.7 x 152 x C'', the width is 152. Put this in a 'width' field (as a number). 4. Count how many rows belong to this distinct product. This is the 'count' (as a number). 5. Sum the 'Gross Weight' for all rows of this product to get the 'totalWeight' (as a number). Crucially, you MUST completely ignore any rows where the 'Description(from DO)' column contains 'เศษคืนลูกค้า (KG)' or similar phrases indicating non-product items like scraps or returns. These rows should not be part of the final JSON output in any way. Return a JSON array where each object represents one distinct product with the fields: customerName, equipment, width, count, and totalWeight." },
+                            imagePart,
+                        ],
+                    },
+                    config: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    customerName: { type: Type.STRING },
+                                    equipment: { type: Type.STRING },
+                                    width: { type: Type.NUMBER },
+                                    count: { type: Type.NUMBER },
+                                    totalWeight: { type: Type.NUMBER },
+                                },
+                                required: ["customerName", "equipment", "width", "count", "totalWeight"],
+                            },
+                        },
+                    },
+                });
+                
+                const text = response.text;
+                const extractedData = JSON.parse(text);
+                
+                if (Array.isArray(extractedData) && extractedData.length > 0) {
+                     const usageData = extractedData.map(item => {
+                        const customEntry = customerEquipmentDb.find(dbItem => dbItem.customerName.trim() === item.customerName.trim());
+                        return {
+                            customerName: item.customerName,
+                            equipment: customEntry ? customEntry.equipment : item.equipment,
+                        };
+                    });
+
+                    const uniqueUsageMap = new Map();
+                    usageData.forEach(item => {
+                        const key = `${item.customerName}|${item.equipment}`;
+                        if (!uniqueUsageMap.has(key)) {
+                            uniqueUsageMap.set(key, item);
+                        }
+                    });
+                    setEquipmentUsage(Array.from(uniqueUsageMap.values()));
+
+                    const newItems = extractedData.map(item => ({
+                        id: Date.now() + Math.random(),
+                        width: String(item.width || ''),
+                        count: String(item.count || ''),
+                        weight: String(item.totalWeight || ''),
+                    }));
+                    setItems(newItems);
+                    
+                } else {
+                    setImageError("ไม่พบข้อมูลสินค้าที่ถูกต้องในรูปภาพ");
+                    handleClear();
+                }
+            } catch (error) {
+                console.error("Error processing image:", error);
+                setImageError("ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่");
+                handleClear();
+            } finally {
+                setIsProcessingImage(false);
             }
-            const objUrl = URL.createObjectURL(file);
-            uploadedImg.src = objUrl;
-            uploadedImg.dataset.objUrl = objUrl;
-          });
-        }
-        if (clearImageBtn && uploadedImg) {
-          clearImageBtn.addEventListener('click', () => {
-            if (uploadedImg.dataset.objUrl) {
-              URL.revokeObjectURL(uploadedImg.dataset.objUrl);
-              delete uploadedImg.dataset.objUrl;
-            }
-            uploadedImg.src = '';
-          });
+        };
+
+        const handleItemChange = (id, field, value) => {
+            setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+        };
+
+        const handleAddItem = () => setItems([...items, { id: Date.now(), width: '', count: '', weight: '' }]);
+        const handleRemoveItem = (id) => { if (items.length > 1) setItems(items.filter(item => item.id !== id)); };
+        const handleClear = useCallback(() => {
+            setItems([{ id: Date.now(), width: '', count: '', weight: '' }]);
+            setSeparatorCount('');
+            setResult(null);
+            setImageError(null);
+            setSuggestedSeparators(null);
+            setEquipmentUsage([]);
+        }, []);
+        
+        const dropzoneEvents = {
+            onDragEnter: (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); },
+            onDragLeave: (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); },
+            onDragOver: (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); },
+            onDrop: (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(false);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleImageChange(e.dataTransfer.files[0]);
+                }
+            },
+        };
+
+        return (
+            React.createElement('div', { className: "animate-fade-in" },
+                React.createElement('h1', { className: "text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-blue-400" }, "ระบบคำนวนการวางสินค้าบนรถ"),
+                React.createElement('p', { className: "text-center text-slate-400 mt-2" }, "กรอกข้อมูลเอง หรือวางรูปภาพเพื่อคำนวณอัตโนมัติ"),
+                React.createElement('div', { className: "mt-8" },
+                    React.createElement('label', {
+                        htmlFor: "image-upload-calculator",
+                        className: `relative block w-full border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragging ? 'border-sky-500 bg-slate-800/80' : 'border-slate-600 hover:border-slate-500'}`,
+                        ...dropzoneEvents
+                    },
+                        React.createElement('div', { className: "flex flex-col items-center justify-center" },
+                            React.createElement(ImageIcon, { className: "mx-auto h-12 w-12 text-slate-500" }),
+                            React.createElement('span', { className: "mt-2 block text-sm font-semibold text-slate-300" }, isProcessingImage ? "กำลังวิเคราะห์รูปภาพ..." : "ลากและวางรูปภาพที่นี่"),
+                            React.createElement('span', { className: "block text-xs text-slate-500" }, isProcessingImage ? "กรุณารอสักครู่" : "หรือ คลิกเพื่อเลือกไฟล์")
+                        ),
+                        isProcessingImage && (
+                             React.createElement('div', { className: "absolute inset-0 bg-slate-900/80 flex items-center justify-center rounded-lg" },
+                                 React.createElement('svg', { className: "animate-spin h-8 w-8 text-sky-400", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
+                                     React.createElement('circle', { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
+                                     React.createElement('path', { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
+                                 )
+                             )
+                        ),
+                        React.createElement('input', { id: "image-upload-calculator", name: "image-upload-calculator", type: "file", className: "sr-only", accept: "image/*", onChange: (e) => handleImageChange(e.target.files ? e.target.files[0] : null), disabled: isProcessingImage })
+                    ),
+                    imageError && React.createElement('p', { className: "mt-2 text-sm text-red-400 text-center" }, imageError)
+                ),
+                equipmentUsage.length > 0 && (
+                    React.createElement('div', { className: "mt-8 animate-fade-in" },
+                        React.createElement('h2', { className: "text-xl font-bold text-slate-200 mb-4 text-center" }, "สรุปการใช้อุปกรณ์"),
+                        React.createElement('div', { className: "bg-slate-800/50 border border-slate-700 rounded-lg p-4 space-y-3 max-h-60 overflow-y-auto" },
+                            equipmentUsage.map((item, index) => (
+                                React.createElement('div', { key: index, className: "flex items-center bg-slate-900/50 p-3 rounded-md" },
+                                    React.createElement(UserIcon, { className: "w-6 h-6 text-sky-400 mr-4 flex-shrink-0" }),
+                                    React.createElement('div', { className: "flex-grow" },
+                                        React.createElement('p', { className: "text-slate-300 font-medium" }, item.customerName),
+                                        React.createElement('p', { className: "text-sm text-slate-400" }, "อุปกรณ์ที่ใช้: ", React.createElement('span', { className: "font-semibold text-amber-400" }, item.equipment))
+                                    )
+                                )
+                            ))
+                        )
+                    )
+                ),
+                React.createElement('div', { className: "relative flex py-5 items-center" },
+                    React.createElement('div', { className: "flex-grow border-t border-slate-700" }),
+                    React.createElement('span', { className: "flex-shrink mx-4 text-slate-500 text-xs" }, "หรือกรอกข้อมูลด้วยตนเอง"),
+                    React.createElement('div', { className: "flex-grow border-t border-slate-700" })
+                ),
+                React.createElement('div', { className: "space-y-4" },
+                     items.map((item, index) => (
+                        React.createElement('div', { key: item.id, className: "bg-slate-800/50 border border-slate-700 rounded-lg p-4 space-y-4 relative transition-all animate-fade-in" },
+                            React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                                React.createElement('h3', { className: "font-semibold text-slate-300" }, `สินค้า #${index + 1}`),
+                                items.length > 1 && (
+                                    React.createElement('button', { onClick: () => handleRemoveItem(item.id), className: "text-slate-500 hover:text-red-400 transition-colors p-1 rounded-full", 'aria-label': "ลบสินค้า" },
+                                        React.createElement(TrashIcon, { className: "w-5 h-5" })
+                                    )
+                                )
+                            ),
+                            React.createElement('div', { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" },
+                                React.createElement(InputField, { id: `itemWidth-${item.id}`, label: "ความกว้าง (หน้าแถบ)", value: item.width, onChange: (e) => handleItemChange(item.id, 'width', e.target.value), icon: React.createElement(WidthIcon, { className: "w-5 h-5" }), placeholder: "เช่น 395", unit: "มม." }),
+                                React.createElement(InputField, { id: `itemCount-${item.id}`, label: "จำนวน", value: item.count, onChange: (e) => handleItemChange(item.id, 'count', e.target.value), icon: React.createElement(CountIcon, { className: "w-5 h-5" }), placeholder: "เช่น 6", unit: "แถบ" })
+                            ),
+                             React.createElement(InputField, { id: `itemWeight-${item.id}`, label: "น้ำหนักรวม", value: item.weight, onChange: (e) => handleItemChange(item.id, 'weight', e.target.value), icon: React.createElement(WeightIcon, { className: "w-5 h-5" }), placeholder: "เช่น 2960", unit: "กก." })
+                        )
+                    ))
+                ),
+                React.createElement('div', { className: "mt-4" },
+                    React.createElement('button', { onClick: handleAddItem, className: "w-full flex items-center justify-center gap-2 px-6 py-2 border border-dashed border-slate-600 text-base font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-sky-500 transition-colors" },
+                        React.createElement(PlusIcon, { className: "w-5 h-5" }), " เพิ่มรายการสินค้า"
+                    )
+                ),
+                React.createElement('div', { className: "mt-6" },
+                    React.createElement(InputField, {
+                        id: "separatorCount",
+                        label: "จำนวนไม้คั่น",
+                        value: separatorCount,
+                        onChange: (e) => setSeparatorCount(e.target.value),
+                        icon: React.createElement(SeparatorIcon, { className: "w-5 h-5" }),
+                        placeholder: "กรอกข้อมูลสินค้า",
+                        unit: "ท่อน",
+                        subtext: suggestedSeparators !== null ? `แนะนำ: ${suggestedSeparators} ท่อน (จากน้ำหนักรวม / 1650 กก.)` : ''
+                    })
+                ),
+                React.createElement('div', { className: "mt-8 flex justify-center" },
+                    React.createElement('button', { onClick: handleClear, className: "w-full max-w-xs flex items-center justify-center px-6 py-3 border border-slate-700 text-base font-medium rounded-md text-slate-300 bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-slate-500 transition-colors" }, "ล้างข้อมูลทั้งหมด")
+                ),
+                React.createElement('div', { className: "mt-8" },
+                    result && (
+                        React.createElement('div', { className: "animate-fade-in" },
+                            result.errorMessage ? (
+                                 React.createElement('div', { className: "flex items-center gap-4 p-4 rounded-lg bg-red-900/50 border border-red-700" },
+                                     React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-8 w-8 text-red-400 flex-shrink-0", viewBox: "0 0 20 20", fill: "currentColor" },
+                                         React.createElement('path', { fillRule: "evenodd", d: "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z", clipRule: "evenodd" })
+                                     ),
+                                     React.createElement('div', null,
+                                         React.createElement('h3', { className: "font-semibold text-red-300" }, "เกิดข้อผิดพลาด"),
+                                         React.createElement('p', { className: "text-sm text-red-400" }, result.errorMessage)
+                                     )
+                                 )
+                            ) : (
+                                React.createElement('div', { className: "p-6 rounded-lg bg-slate-800/50 border border-slate-700" },
+                                    React.createElement('div', { className: "flex items-start gap-4" },
+                                        React.createElement('div', { className: "flex-shrink-0 bg-sky-500/10 text-sky-400 p-3 rounded-full" },
+                                            React.createElement(TruckIcon, { className: "w-8 h-8" })
+                                        ),
+                                        React.createElement('div', null,
+                                            React.createElement('h3', { className: "text-xl font-bold text-white" }, "ผลการคำนวณ"),
+                                            React.createElement('p', { className: "text-slate-400" }, "สรุปความยาวและแคร่ที่แนะนำ"),
+                                            React.createElement('div', { className: "mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-center" },
+                                                React.createElement('div', { className: "bg-slate-900/50 p-3 rounded-md" },
+                                                    React.createElement('p', { className: "text-xs text-slate-400" }, "ความยาวรวม"),
+                                                    React.createElement('p', { className: "text-lg font-semibold text-sky-300" }, `${(result.totalLengthMm / 10).toFixed(2)} `, React.createElement('span', { className: "text-sm" }, "ซม.")),
+                                                    React.createElement('p', { className: "text-xs text-slate-500" }, `(${(result.totalLengthMm / 1000).toFixed(2)} ม.)`)
+                                                ),
+                                                React.createElement('div', { className: "bg-slate-900/50 p-3 rounded-md" },
+                                                    React.createElement('p', { className: "text-xs text-slate-400" }, "แคร่ที่แนะนำ"),
+                                                    React.createElement('p', { className: "text-lg font-semibold text-green-300" }, result.recommendedBed?.name),
+                                                    React.createElement('p', { className: "text-xs text-slate-500" }, `(ขนาด ${result.recommendedBed?.length/1000} ม.)`)
+                                                )
+                                            )
+                                        )
+                                    ),
+                                    React.createElement(VisualResult, { result: result })
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        );
+    };
+
+    // --- FROM components/WeightTicketPrinter.tsx ---
+    const initialTicketState = {
+        ticketId: '',
+        licensePlate: '',
+        customerName: '',
+        productDescription: '',
+        dateIn: '',
+        timeIn: '',
+        grossWeightIn: '-',
+        billWeight: '-',
+        diffWeight: '-',
+        dateOut: '',
+        timeOut: '',
+        tareWeightIn: '-',
+        tareWeightOut: '-',
+        netWeight: '',
+        remarks: '',
+    };
+
+    const TicketField = ({ label, value, name, onChange, unit, alignStart }) => (
+        React.createElement('div', { className: "flex items-baseline" },
+            React.createElement('span', { className: "w-28 text-[24px] text-slate-400 flex-shrink-0" }, label),
+            React.createElement('span', { className: "mx-2 text-slate-500" }, ":"),
+            React.createElement('div', { 
+                className: `flex-grow flex items-baseline ${unit && !alignStart ? 'justify-end' : 'justify-start'}` 
+            },
+                unit ? 
+                    React.createElement(React.Fragment, null,
+                        React.createElement('input', {
+                            type: 'text',
+                            name: name,
+                            value: value,
+                            onChange: onChange,
+                            // Dynamically set size to prevent extra space inside the input
+                            size: value.length > 1 ? value.length : 4,
+                            className: `bg-transparent text-white text-[24px] focus:outline-none focus:bg-slate-800/50 rounded px-1 ${!alignStart ? 'text-right' : ''}`
+                        }),
+                        React.createElement('span', { className: "ml-1 text-[24px] text-slate-400" }, unit)
+                    ) :
+                    React.createElement('input', {
+                        type: 'text',
+                        name: name,
+                        value: value,
+                        onChange: onChange,
+                        className: `flex-grow bg-transparent text-white text-[24px] focus:outline-none focus:bg-slate-800/50 rounded px-1`
+                    })
+            )
+        )
+    );
+
+    const WeightTicketPrinter = () => {
+        const [ticketData, setTicketData] = useState(initialTicketState);
+        const [isProcessing, setIsProcessing] = useState(false);
+        const [processingError, setProcessingError] = useState(null);
+        const [pastedText, setPastedText] = useState('');
+        const [detectedDOs, setDetectedDOs] = useState([]);
+        const [selectedDO, setSelectedDO] = useState(null);
+        
+        const handleClear = () => {
+             setTicketData(initialTicketState);
+             setProcessingError(null);
+             setPastedText('');
+             setDetectedDOs([]);
+             setSelectedDO(null);
         }
 
-        updateDateTime();
-        generateTicketNumber();
-        updateProduct();
-        updateNetWeight();
+        const handlePrint = () => {
+            window.print();
+        };
+
+        const handleFieldChange = (e) => {
+            const { name, value } = e.target;
+            if (name === 'netWeight' || name.toLowerCase().includes('weight')) {
+                const numericValue = value.replace(/,/g, '');
+                if (numericValue !== '' && !/^\d*\.?\d*$/.test(numericValue)) {
+                    return; 
+                }
+                const parts = numericValue.split('.');
+                const integerPart = parts[0];
+                const decimalPart = parts[1];
+                const formattedIntegerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                let finalValue = formattedIntegerPart;
+                if (decimalPart !== undefined) {
+                    finalValue += '.' + decimalPart;
+                }
+                setTicketData(prev => ({ ...prev, [name]: finalValue }));
+            } else {
+                setTicketData(prev => ({ ...prev, [name]: value }));
+            }
+        };
+
+        const processDODataLocally = (doToProcess, fullText) => {
+            if (!fullText.trim() || !doToProcess) {
+                setProcessingError("ไม่พบข้อมูลสำหรับประมวลผล");
+                return;
+            }
+
+            setIsProcessing(true);
+            setProcessingError(null);
+            setTicketData(initialTicketState);
+
+            setTimeout(() => {
+                try {
+                    const lines = fullText.trim().split('\n');
+                    if (lines.length === 0) throw new Error("ข้อมูลที่วางว่างเปล่า");
+                    
+                    const headerLine = lines[0];
+                    const isHeaderPresent = headerLine.toLowerCase().includes('do') && (headerLine.toLowerCase().includes('external id 1') || headerLine.toLowerCase().includes('material'));
+                    const headerColumns = isHeaderPresent ? headerLine.split('\t').map(c => c.trim().toLowerCase()) : [];
+                    
+                    const getIndex = (name) => {
+                        const idx = headerColumns.indexOf(name.toLowerCase());
+                        if (idx !== -1) return idx;
+                        if (name.toLowerCase() === 'do') return 0;
+                        if (name.toLowerCase() === 'external id 1') return 1;
+                        if (name.toLowerCase() === 'name') return 5;
+                        if (name.toLowerCase() === 'material') return 4;
+                        return -1;
+                    };
+
+                    const doColIdx = getIndex('do');
+                    const licenseColIdx = getIndex('external id 1');
+                    const nameColIdx = getIndex('name');
+                    const materialColIdx = getIndex('material');
+
+                    const dataLines = isHeaderPresent ? lines.slice(1) : lines;
+
+                    const doRows = dataLines
+                        .map(line => line.split('\t'))
+                        .filter(cols => cols.length > doColIdx && cols[doColIdx].trim() === doToProcess);
+
+                    if (doRows.length === 0) throw new Error(`ไม่พบข้อมูลสำหรับ DO: ${doToProcess}`);
+                    
+                    const firstRow = doRows[0];
+                    const licensePlate = firstRow.length > licenseColIdx ? firstRow[licenseColIdx].trim() : '';
+                    const customerName = firstRow.length > nameColIdx ? firstRow[nameColIdx].trim() : '';
+                    const remarks = `DO NO. ${doToProcess}`;
+
+                    const materials = new Set(doRows.map(row => row.length > materialColIdx ? row[materialColIdx].trim() : null).filter(Boolean));
+                    let productDescription = '';
+                    const hasSlit = materials.has('2SLIT');
+                    const hasScrap = materials.has('2SCRAP-W');
+
+                    if (hasSlit && hasScrap) {
+                        productDescription = "เหล็กม้วนสลิต + เศษรังผึ้ง";
+                    } else if (hasSlit) {
+                        productDescription = "เหล็กม้วนสลิต";
+                    } else if (hasScrap) {
+                        productDescription = "เศษคืนลูกค้า";
+                    }
+
+                    const ticketId = Math.floor(10000000 + Math.random() * 90000000).toString();
+                    const now = new Date();
+                    const buddhistYear = now.getFullYear() + 543;
+                    const date = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${buddhistYear}`;
+                    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+                    const newData = {
+                        ticketId,
+                        licensePlate,
+                        customerName,
+                        productDescription,
+                        remarks,
+                        dateIn: date,
+                        dateOut: date,
+                        timeIn: time,
+                        timeOut: time,
+                        grossWeightIn: '-',
+                        billWeight: '-',
+                        diffWeight: '-',
+                        tareWeightIn: '-',
+                        tareWeightOut: '-',
+                        netWeight: '',
+                    };
+                    
+                    setTicketData(newData);
+                } catch (error) {
+                    console.error("Error processing text data locally:", error);
+                    setProcessingError(error.message || "ไม่สามารถประมวลผลข้อมูลที่วางได้ กรุณาตรวจสอบรูปแบบ");
+                } finally {
+                    setIsProcessing(false);
+                }
+            }, 50);
+        };
+        
+        const handleProcessText = () => {
+            if (!pastedText.trim()) {
+                setProcessingError("กรุณาวางข้อมูลที่ต้องการประมวลผล");
+                return;
+            }
+
+            setIsProcessing(true);
+            setTicketData(initialTicketState);
+            setProcessingError(null);
+            setDetectedDOs([]);
+            setSelectedDO(null);
+
+            setTimeout(() => {
+                try {
+                    const lines = pastedText.trim().split('\n').filter(line => line.trim() !== '');
+                    if (lines.length === 0) throw new Error("ข้อมูลที่วางว่างเปล่า");
+
+                    const headerLine = lines[0];
+                    const isHeaderPresent = headerLine.toLowerCase().includes('do') && (headerLine.toLowerCase().includes('external id 1') || headerLine.toLowerCase().includes('material'));
+                    const headerColumns = isHeaderPresent ? headerLine.split('\t').map(c => c.trim().toLowerCase()) : [];
+                    
+                    let doColumnIndex = headerColumns.indexOf('do');
+                    if (doColumnIndex === -1) doColumnIndex = 0;
+
+                    const dataLines = isHeaderPresent ? lines.slice(1) : lines;
+                    
+                    const uniqueDOs = [...new Set(
+                        dataLines
+                            .map(line => {
+                                const columns = line.split('\t');
+                                return columns.length > doColumnIndex ? columns[doColumnIndex].trim() : null;
+                            })
+                            .filter(Boolean)
+                    )];
+
+                    if (uniqueDOs.length === 0) throw new Error("ไม่พบข้อมูล DO ในข้อมูลที่วาง");
+                    
+                    if (uniqueDOs.length > 1) {
+                        setDetectedDOs(uniqueDOs);
+                    } else {
+                        setSelectedDO(uniqueDOs[0]);
+                        processDODataLocally(uniqueDOs[0], pastedText);
+                    }
+                } catch (e) {
+                    setProcessingError(e.message || "เกิดข้อผิดพลาดในการวิเคราะห์ข้อมูลที่วาง");
+                    console.error(e);
+                } finally {
+                    setIsProcessing(false);
+                }
+            }, 50);
+        };
+
+        return (
+            React.createElement('div', { className: "animate-fade-in" },
+                React.createElement('div', { className: "no-print" },
+                    React.createElement('h1', { className: "text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-blue-400" }, "ระบบพิมพ์บัตรชั่งน้ำหนัก"),
+                    React.createElement('p', { className: "text-center text-slate-400 mt-2" }, "วางข้อมูลจากระบบเพื่อดึงข้อมูลอัตโนมัติ"),
+                     React.createElement('div', { className: "mt-8 space-y-4" },
+                        React.createElement('textarea', {
+                           id: "pasted-data",
+                           rows: 8,
+                           className: "block w-full rounded-md border-0 bg-slate-800/80 p-4 text-white shadow-sm ring-1 ring-inset ring-slate-700 placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-sky-500 sm:text-sm sm:leading-6 transition-all",
+                           placeholder: "วางข้อมูลที่คัดลอกมาที่นี่...",
+                           value: pastedText,
+                           onChange: (e) => setPastedText(e.target.value),
+                           disabled: isProcessing,
+                        }),
+                        React.createElement('button', {
+                           onClick: handleProcessText,
+                           disabled: isProcessing || !pastedText,
+                           className: "w-full flex items-center justify-center gap-2 px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-sky-600 hover:bg-sky-500 transition-colors disabled:bg-slate-600 disabled:cursor-not-allowed"
+                           },
+                           isProcessing ? React.createElement('div', { className: "w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin" }) : 'ประมวลผลข้อมูล',
+                        ),
+                        detectedDOs.length > 1 && !isProcessing && (
+                            React.createElement('div', { className: "p-4 bg-slate-800 rounded-lg animate-fade-in border border-slate-700" },
+                                React.createElement('h3', { className: "font-semibold text-slate-300 mb-2" }, "พบเอกสารหลายฉบับ"),
+                                React.createElement('p', { className: "text-sm text-slate-400 mb-3" }, "กรุณาเลือก DO ที่ต้องการพิมพ์บัตรชั่ง:"),
+                                React.createElement('div', { className: "flex flex-wrap gap-2" },
+                                    detectedDOs.map(doNumber => (
+                                        React.createElement('button', {
+                                            key: doNumber,
+                                            onClick: () => {
+                                                setSelectedDO(doNumber);
+                                                processDODataLocally(doNumber, pastedText);
+                                            },
+                                            className: `px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                                                selectedDO === doNumber
+                                                    ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/50'
+                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            }`
+                                        }, doNumber)
+                                    ))
+                                )
+                            )
+                        ),
+                        processingError && React.createElement('p', { className: "mt-2 text-sm text-red-400 text-center" }, processingError)
+                    )
+                ),
+                
+                React.createElement('div', { id: "print-section", className: "mt-8 p-2 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-200 font-angsana leading-tight" },
+                    React.createElement('div', { className: 'text-center' },
+                        React.createElement('h2', { className: "text-[35px] font-bold leading-tight" }, "บริษัท ทีเอ็มที สตีล จำกัด (มหาชน)"),
+                        React.createElement('p', { className: "text-[19px] text-slate-400" }, "สาขาวังน้อย: 332-333 หมู่ที่5 ถนนพหลโยธิน ต.ลำไทร อ.วังน้อย พระนครศรีอยุธยา 13170"),
+                        React.createElement('h3', { className: "text-[25px] font-semibold my-1" }, "ใบชั่งน้ำหนัก")
+                    ),
+
+                    React.createElement('div', { className: "grid grid-cols-2 gap-x-4 text-[24px]" },
+                        React.createElement('div', { className: "space-y-0" },
+                            React.createElement('div', { className: "flex items-baseline" },
+                                React.createElement('span', { className: "text-slate-400" }, "เลขที่บัตร"),
+                                React.createElement('span', { className: "mx-2 text-slate-500" }, ":"),
+                                React.createElement('span', { className: "text-white truncate" }, ticketData.ticketId)
+                            ),
+                            React.createElement('div', { className: "flex items-baseline" },
+                                React.createElement('span', { className: "text-slate-400" }, "ทะเบียนรถ"),
+                                React.createElement('span', { className: "mx-2 text-slate-500" }, ":"),
+                                React.createElement('span', { className: "text-white truncate" }, ticketData.licensePlate)
+                            )
+                        ),
+                        React.createElement('div', { className: "space-y-0" },
+                             React.createElement('div', { className: "flex items-baseline" },
+                                React.createElement('span', { className: "text-slate-400" }, "ลูกค้า"),
+                                React.createElement('span', { className: "mx-2 text-slate-500" }, ":"),
+                                React.createElement('span', { className: "text-white truncate" }, ticketData.customerName)
+                            ),
+                            React.createElement('div', { className: "flex items-baseline" },
+                                React.createElement('span', { className: "text-slate-400" }, "สินค้า"),
+                                React.createElement('span', { className: "mx-2 text-slate-500" }, ":"),
+                                React.createElement('span', { className: "text-white truncate" }, ticketData.productDescription)
+                            )
+                        )
+                    ),
+                    
+                    React.createElement('div', { className: "border-t border-dashed border-slate-700 my-1" }),
+                    
+                    React.createElement('div', { className: "grid grid-cols-2 gap-x-6" },
+                        React.createElement('div', { className: "space-y-0" },
+                            React.createElement('h4', { className: "font-semibold text-center mb-1 text-[24px]" }, "รถเข้า"),
+                            React.createElement(TicketField, { label: 'วันที่ชั่งเข้า', value: ticketData.dateIn, name: 'dateIn', onChange: handleFieldChange }),
+                            React.createElement(TicketField, { label: 'เวลาชั่งเข้า', value: ticketData.timeIn, name: 'timeIn', onChange: handleFieldChange }),
+                            React.createElement(TicketField, { label: 'น้ำหนักรถเข้า', value: ticketData.grossWeightIn === '-' ? '' : ticketData.grossWeightIn, name: 'grossWeightIn', onChange: handleFieldChange, unit: 'กก.', alignStart: true }),
+                            React.createElement(TicketField, { label: 'น้ำหนักตามบิล', value: ticketData.billWeight === '-' ? '' : ticketData.billWeight, name: 'billWeight', onChange: handleFieldChange, unit: 'กก.', alignStart: true }),
+                            React.createElement(TicketField, { label: 'น้ำหนักต่าง', value: ticketData.diffWeight === '-' ? '' : ticketData.diffWeight, name: 'diffWeight', onChange: handleFieldChange, unit: 'กก.', alignStart: true }),
+                        ),
+                         React.createElement('div', { className: "space-y-0" },
+                            React.createElement('h4', { className: "font-semibold text-center mb-1 text-[24px]" }, "รถออก"),
+                            React.createElement(TicketField, { label: 'วันที่ชั่งออก', value: ticketData.dateOut, name: 'dateOut', onChange: handleFieldChange }),
+                            React.createElement(TicketField, { label: 'เวลาชั่งออก', value: ticketData.timeOut, name: 'timeOut', onChange: handleFieldChange }),
+                            React.createElement(TicketField, { label: 'น้ำหนักรถเข้า', value: ticketData.tareWeightIn === '-' ? '' : ticketData.tareWeightIn, name: 'tareWeightIn', onChange: handleFieldChange, unit: 'กก.', alignStart: true }),
+                            React.createElement(TicketField, { label: 'น้ำหนักรถออก', value: ticketData.tareWeightOut === '-' ? '' : ticketData.tareWeightOut, name: 'tareWeightOut', onChange: handleFieldChange, unit: 'กก.', alignStart: true }),
+                            React.createElement(TicketField, { label: 'น้ำหนักสุทธิ', value: ticketData.netWeight, name: 'netWeight', onChange: handleFieldChange, unit: 'กก.', alignStart: true }),
+                        )
+                    ),
+
+                    React.createElement('div', { className: "border-t border-dashed border-slate-700 my-1" }),
+                    
+                    React.createElement('div', { className: 'mt-1' },
+                        React.createElement(TicketField, { label: 'หมายเหตุ', value: ticketData.remarks, name: 'remarks', onChange: handleFieldChange })
+                    ),
+                    React.createElement('div', { className: 'mt-2 text-right text-[24px]' },
+                        React.createElement('p', null, "พนักงานชั่งน้ำหนัก....................................")
+                    )
+                ),
+
+                React.createElement('div', { className: "mt-8 flex justify-center gap-4 no-print" },
+                    React.createElement('button', { onClick: handleClear, className: "w-full max-w-xs flex items-center justify-center gap-2 px-6 py-3 border border-slate-700 text-base font-medium rounded-md text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors" }, 
+                        React.createElement(TrashIcon, { className: "w-5 h-5" }), "ล้างข้อมูล"
+                    ),
+                    React.createElement('button', { onClick: handlePrint, className: "w-full max-w-xs flex items-center justify-center gap-2 px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-sky-600 hover:bg-sky-500 transition-colors" }, 
+                         React.createElement(PrinterIcon, { className: "w-5 h-5" }), "พิมพ์บัตรชั่ง"
+                    )
+                )
+            )
+        );
+    };
+
+    // --- FROM App.tsx ---
+    const TabButton = ({ tabName, activeTab, onClick, label, icon }) => (
+      React.createElement('button', {
+        onClick: () => onClick(tabName),
+        className: `flex-1 flex items-center justify-center gap-2 p-4 text-sm font-semibold transition-colors focus:outline-none ${
+          activeTab === tabName
+            ? 'text-sky-300 bg-slate-800/50'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/20'
+        }`
+      },
+      icon,
+      label
+      )
+    );
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('calculator');
+      const [customerEquipmentDb, setCustomerEquipmentDb] = useState([]);
+      const [scriptUrl, setScriptUrl] = useState('');
+      const [tempScriptUrl, setTempScriptUrl] = useState('');
+      const [isDbLoading, setIsDbLoading] = useState(false);
+      const [dbError, setDbError] = useState(null);
+
+      const loadCustomerDbFromSheet = useCallback(async (url) => {
+        if (!url) {
+          setDbError("ไม่พบ URL ของ Google Apps Script");
+          return;
+        }
+        setIsDbLoading(true);
+        setDbError(null);
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Network response was not ok: ${response.statusText}`);
+          }
+          const result = await response.json();
+          if (result.success) {
+            setCustomerEquipmentDb(result.data || []);
+          } else {
+            throw new Error(result.error || 'Failed to fetch data from script.');
+          }
+        } catch (error) {
+          console.error("Failed to load customer DB from Google Sheet", error);
+          setDbError(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
+          setCustomerEquipmentDb([]);
+        } finally {
+          setIsDbLoading(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        const savedUrl = localStorage.getItem('googleScriptUrl') || 'https://script.google.com/macros/s/AKfycbwz48fIa4dQk6MjyTdlNwkDcb5DlXgZbIWfDbSKUdSrJvTwDyagWCNgAfke1e85bJ11/exec';
+        setScriptUrl(savedUrl);
+        setTempScriptUrl(savedUrl);
+        loadCustomerDbFromSheet(savedUrl);
+      }, [loadCustomerDbFromSheet]);
+
+      const handleSaveScriptUrl = () => {
+        const urlToSave = tempScriptUrl.trim();
+        if (urlToSave) {
+          setScriptUrl(urlToSave);
+          localStorage.setItem('googleScriptUrl', urlToSave);
+          loadCustomerDbFromSheet(urlToSave);
+          setDbError(null);
+        }
+      };
+
+      const handleAddCustomerEquipment = async (newCustomer) => {
+        if (!scriptUrl) {
+          setDbError("กรุณาตั้งค่า Google Apps Script URL ก่อน");
+          return false;
+        }
+         if (newCustomer.name.trim() && newCustomer.equipment.trim()) {
+            if (!customerEquipmentDb.some(item => item.customerName === newCustomer.name.trim())) {
+                setIsDbLoading(true);
+                setDbError(null);
+                try {
+                     await fetch(scriptUrl, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'add', payload: { customerName: newCustomer.name.trim(), equipment: newCustomer.equipment.trim()} }),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                     });
+                     await loadCustomerDbFromSheet(scriptUrl);
+                     return true; // Indicate success
+                } catch(error) {
+                    setDbError(`ไม่สามารถเพิ่มข้อมูลได้: ${error.message}`);
+                } finally {
+                    setIsDbLoading(false);
+                }
+            }
+        }
+        return false; // Indicate failure
+      };
+
+      const handleRemoveCustomerEquipment = async (customerNameToRemove) => {
+        if (!scriptUrl) {
+            setDbError("กรุณาตั้งค่า Google Apps Script URL ก่อน");
+            return;
+        }
+        setIsDbLoading(true);
+        setDbError(null);
+        try {
+            await fetch(scriptUrl, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'delete', payload: { customerName: customerNameToRemove } }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            });
+            await loadCustomerDbFromSheet(scriptUrl);
+        } catch(error) {
+            setDbError(`ไม่สามารถลบข้อมูลได้: ${error.message}`);
+        } finally {
+            setIsDbLoading(false);
+        }
+      };
+
+      return (
+        React.createElement('main', { className: "bg-slate-900 min-h-screen w-full flex flex-col items-center text-white p-4 overflow-hidden" },
+          React.createElement('div', { className: "absolute top-0 left-0 w-full h-full bg-grid-slate-700/[0.2] [mask-image:linear-gradient(to_bottom,white,transparent)]" }),
+          React.createElement('div', { className: "relative z-10 w-full max-w-3xl my-8" },
+            React.createElement('div', { className: "w-full mx-auto bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl shadow-2xl shadow-sky-900/20 overflow-hidden" },
+              React.createElement('div', { className: "flex border-b border-slate-700" },
+                React.createElement(TabButton, { tabName: "calculator", activeTab: activeTab, onClick: setActiveTab, label: "คำนวณ", icon: React.createElement(CalculatorIcon, { className: "w-5 h-5" }) }),
+                React.createElement(TabButton, { tabName: "weighingTicket", activeTab: activeTab, onClick: setActiveTab, label: "พิมพ์บัตรชั่ง", icon: React.createElement(PrinterIcon, { className: "w-5 h-5" }) }),
+                React.createElement(TabButton, { tabName: "dbManager", activeTab: activeTab, onClick: setActiveTab, label: "จัดการฐานข้อมูล", icon: React.createElement(DatabaseIcon, { className: "w-5 h-5" }) })
+              ),
+              React.createElement('div', { className: "p-8" },
+                activeTab === 'calculator' && React.createElement(Calculator, { customerEquipmentDb: customerEquipmentDb }),
+                activeTab === 'weighingTicket' && React.createElement(WeightTicketPrinter, null),
+                activeTab === 'dbManager' && React.createElement(CustomerDbManager, {
+                  customerEquipmentDb: customerEquipmentDb,
+                  tempScriptUrl: tempScriptUrl,
+                  isDbLoading: isDbLoading,
+                  dbError: dbError,
+                  setTempScriptUrl: setTempScriptUrl,
+                  onSaveUrl: handleSaveScriptUrl,
+                  onAddCustomer: handleAddCustomerEquipment,
+                  onRemoveCustomer: handleRemoveCustomerEquipment,
+                  hasValidUrl: !!scriptUrl
+                })
+              )
+            )
+          ),
+          React.createElement('footer', { className: "relative z-10 text-center text-slate-500 text-sm mt-8" },
+            React.createElement('p', null, "สร้างโดย AI สำหรับการวางแผนการขนส่ง")
+          )
+        )
+      );
     }
 
-    window.onload = initialize;
-  </script>
-</body>
+    // --- FROM index.tsx ---
+    const rootElement = document.getElementById('root');
+    if (!rootElement) {
+      throw new Error("Could not find root element to mount to");
+    }
+
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      React.createElement(React.StrictMode, null,
+        React.createElement(App, null)
+      )
+    );
+    </script>
+  </body>
 </html>
