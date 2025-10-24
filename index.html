@@ -78,6 +78,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -362,6 +363,36 @@
         );
     };
 
+    const VisualResult = ({ result }) => {
+        const { totalLengthMm, recommendedBed } = result;
+        const displayBed = recommendedBed || TRUCK_BEDS[TRUCK_BEDS.length - 1];
+        const percentage = displayBed ? Math.min((totalLengthMm / displayBed.length) * 100, 150) : 0;
+        const isOverloaded = recommendedBed === null && totalLengthMm > 0;
+
+        return (
+            React.createElement('div', { className: "mt-6" },
+                React.createElement('h3', { className: "text-lg font-semibold text-slate-200" }, "ภาพรวมการวางสินค้า"),
+                React.createElement('div', { className: "mt-3 bg-slate-800 rounded-lg p-4" },
+                    React.createElement('div', { className: "flex justify-between items-center text-xs text-slate-400 mb-2" },
+                        React.createElement('span', null, "0 ม."),
+                        React.createElement('span', null, `${displayBed.name} (${displayBed.length / 1000} ม.)`)
+                    ),
+                    React.createElement('div', { className: "relative w-full h-8 bg-slate-700 rounded-full overflow-hidden" },
+                        React.createElement('div', {
+                            className: `absolute top-0 left-0 h-full rounded-full transition-all duration-500 ease-out ${isOverloaded ? 'bg-red-500' : 'bg-sky-500'}`,
+                            style: { width: `${isOverloaded ? 100 : percentage}%` }
+                        }),
+                        React.createElement('div', { className: "absolute inset-0 flex items-center justify-center" },
+                            React.createElement('span', { className: "font-bold text-sm text-white drop-shadow-md" },
+                                `${(totalLengthMm / 1000).toFixed(2)} ม.`
+                            )
+                        )
+                    )
+                )
+            )
+        );
+    };
+
     const Calculator = ({ customerEquipmentDb }) => {
         const [items, setItems] = useState([{ id: Date.now(), width: '', count: '', weight: '' }]);
         const [separatorCount, setSeparatorCount] = useState('');
@@ -539,7 +570,9 @@
                         equipment = 'แคร่';
                     }
         
-                    const customEntry = customerEquipmentDb.find(dbItem => dbItem.customerName.trim() === group.customerName.trim());
+                    const customEntry = customerEquipmentDb.find(dbItem =>
+                        dbItem && typeof dbItem.customerName === 'string' && dbItem.customerName.trim() === group.customerName.trim()
+                    );
                     const finalEquipment = customEntry ? customEntry.equipment : equipment;
                     
                     usageData.push({
@@ -1235,5 +1268,6 @@
       )
     );
     </script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>
